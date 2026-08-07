@@ -21,3 +21,14 @@ coverage/
 .vscode/
 *.iml
 
+# Runtime and Android machine state
+backend/.env
+backend/.env.*
+!backend/.env.example
+android/local.properties
+android/.gradle/
+android/app/build/
+android/build/
+*.apk
+*.aab
+

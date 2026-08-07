@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-easymacros}
+      POSTGRES_USER: ${POSTGRES_USER:-easymacros}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-before-use}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - easymacros-dev-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
+volumes:
+  easymacros-dev-postgres:

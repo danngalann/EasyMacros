@@ -1,0 +1,4 @@
+title = "EasyMacros secret scanning rules"
+
+[extend]
+useDefault = true
