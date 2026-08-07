@@ -83,6 +83,7 @@ Phase 5 adds authenticated recipe, ration, goal, dashboard, and recipe-search en
 ```http
 GET    /recipes?query=
 POST   /recipes
+POST   /recipes/preview
 GET    /recipes/{recipeId}
 PUT    /recipes/{recipeId}
 DELETE /recipes/{recipeId}
@@ -98,7 +99,14 @@ GET    /dashboard?date=YYYY-MM-DD
 `POST /recipes` and `PUT /recipes/{recipeId}` require `name`, positive decimal
 `yieldGrams`, and at least one `{ingredientId, quantityGrams}` component. A recipe
 update creates a new immutable version and makes it current; it never modifies an
-existing version. Recipe deletion is a soft deletion and returns `204`.
+existing version. `PUT /recipes/{recipeId}` also accepts the loaded `expectedVersion`;
+the API returns `409` when that version is stale so the client can reload before editing
+again. Recipe deletion is a soft deletion and returns `204`.
+
+`POST /recipes/preview` accepts the same recipe payload and validates the caller-owned
+ingredients, then returns the canonical batch nutrient totals and derived calories without
+creating or changing a recipe. Clients use this endpoint for pre-save display only; the
+subsequent create or update remains the authoritative persisted operation.
 
 `POST /rations` requires a current active `recipeId`, positive decimal `consumedGrams`,
 and an ISO-8601 `consumedAt`; `note` is optional. The API reads the authenticated user's

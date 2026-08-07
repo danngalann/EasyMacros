@@ -37,3 +37,12 @@ and refresh authenticator. `DashboardRepository` maps wire DTOs into display mod
 the `DashboardViewModel` owns the selected `LocalDate` and its immutable loading,
 content, and error state. The app displays server-provided nutrient totals and calories
 without independently recalculating them.
+
+Phase 8 adds a recipe workspace reachable from the authenticated dashboard. `RecipeApi`
+and `IngredientApi` use the protected client, while `RecipeRepository` maps recipe and
+ingredient wire responses into UI models. `RecipesViewModel` owns immutable list, detail,
+editor, preview, and delete-confirmation state. The editor retains its draft across
+recomposition and configuration changes, validates positive decimal inputs before a
+request, prevents duplicate submissions, and asks `POST /recipes/preview` for display
+totals. Creating or updating then receives the persisted immutable version from the
+server; Android never calculates recipe nutrients itself.

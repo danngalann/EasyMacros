@@ -61,3 +61,33 @@ formats those values for display, avoiding a second authoritative calculation on
 failure state. A useful debugging check is to compare the requested `date` query value
 with the user's stored timezone: the backend, rather than the device timezone, defines
 the dashboard's local-day totals.
+
+## Phase 8: Recipes
+
+`RecipesViewModel` is screen-scoped and exposes one immutable `RecipesUiState` containing
+the recipe list, selected detail, draft editor, and pending delete confirmation. Each
+editor change creates a new immutable component list, so Compose sees a state change and
+recomposes without a mutable list escaping into the UI. The draft is source state; the
+server preview is derived display state and is cleared when source values change.
+
+Recipe and ingredient endpoints are `suspend` Retrofit calls. They flow through
+`RecipeRepository`, which maps DTOs to domain/UI models and turns HTTP or connectivity
+errors into a standard failure. `viewModelScope` survives recomposition and cancels
+requests when its ViewModel is cleared. The Hilt ViewModel survives configuration changes,
+so a rotation retains the current list, detail, and editor draft, but process death starts
+from the recipe list because Phase 8 does not persist unfinished recipes.
+
+The backend validates ownership and performs decimal calculation for `POST
+/recipes/preview`, create, and update. This prevents Android display arithmetic from
+becoming a second source of truth. A useful debugging technique is to compare the draft's
+ingredient IDs and gram strings with the preview request; a `400` means one of those
+server validations rejected the draft, while `404` during an update means the active
+recipe was deleted and should be reopened from search.
+
+`RecipesViewModelTest` proves list loading, local validation, deliberate hidden-ingredient
+inclusion, server-preview display, and duplicate-save prevention. Run it with:
+
+```sh
+cd android
+./gradlew testDebugUnitTest --tests 'com.danngalann.easymacros.ui.RecipesViewModelTest'
+```

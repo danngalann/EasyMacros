@@ -64,3 +64,11 @@
 - [x] Authenticated Android daily dashboard with date navigation and authoritative server totals
 - [x] Dashboard DTO-to-domain mapping with protected Retrofit access and refresh support
 - [x] Loading, empty, retry, offline, and session-expiry states with focused ViewModel tests
+
+## Phase 8 checklist
+
+- [x] Authenticated Android recipe search, detail, composition, and nutrient-total displays
+- [x] Recipe editor with owner-scoped ingredient search, optional hidden ingredients, validation,
+      server-authoritative preview, immutable version updates, and duplicate-submit prevention
+- [x] Recipe deletion confirmation explaining active-recipe removal and retained ration snapshots
+- [x] Focused recipe ViewModel regression tests and protected backend preview workflow coverage
