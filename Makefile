@@ -32,11 +32,11 @@ test-backend:
 	pnpm test:backend
 
 test-android:
-	./android/gradlew test
+	cd android && ./gradlew test
 
 build:
 	pnpm build
-	./android/gradlew assembleDebug
+	cd android && ./gradlew assembleDebug
 
 openapi-check:
 	pnpm --filter backend exec vitest run -t 'OpenAPI'
