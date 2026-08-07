@@ -7,6 +7,7 @@ import { AuthError, AuthService } from "./auth.js";
 import type { AppConfig } from "./config.js";
 import type { Database } from "./database.js";
 import { IngredientError, IngredientService } from "./ingredients.js";
+import { NutritionWorkflowService, WorkflowError } from "./workflows.js";
 
 export interface BuildAppOptions {
   config?: AppConfig;
@@ -17,6 +18,7 @@ export async function buildApp({ config, database }: BuildAppOptions = {}) {
   const app = Fastify({ logger: false, trustProxy: config?.trustedProxyHops || false });
   const auth = config && database ? new AuthService(database, config) : undefined;
   const ingredients = database ? new IngredientService(database) : undefined;
+  const workflows = database ? new NutritionWorkflowService(database) : undefined;
 
   await app.register(rateLimit, { global: false });
 
@@ -103,6 +105,13 @@ export async function buildApp({ config, database }: BuildAppOptions = {}) {
       throw new Error("Nutrition requires database");
     }
     return ingredients;
+  }
+
+  function requireWorkflowService(): NutritionWorkflowService {
+    if (!workflows) {
+      throw new Error("Nutrition requires database");
+    }
+    return workflows;
   }
 
   function clientIp(request: { ip: string }): string {
@@ -287,6 +296,117 @@ export async function buildApp({ config, database }: BuildAppOptions = {}) {
     },
   );
 
+  app.get<{ Querystring: { query?: string } }>(
+    "/recipes",
+    { schema: { tags: ["recipes"] } },
+    async (request) => {
+      const identity = await requireIdentity(request);
+      return {
+        recipes: await requireWorkflowService().listRecipes(identity.userId, request.query.query),
+      };
+    },
+  );
+
+  app.post<{
+    Body: {
+      components: Array<{ ingredientId: string; quantityGrams: string }>;
+      name: string;
+      notes?: string;
+      yieldGrams: string;
+    };
+  }>("/recipes", { schema: { tags: ["recipes"] } }, async (request) => {
+    const identity = await requireIdentity(request);
+    return requireWorkflowService().createRecipe(identity.userId, request.body);
+  });
+
+  app.get<{ Params: { recipeId: string } }>(
+    "/recipes/:recipeId",
+    { schema: { tags: ["recipes"] } },
+    async (request, reply) => {
+      const identity = await requireIdentity(request);
+      const recipe = await requireWorkflowService().detailRecipe(
+        identity.userId,
+        request.params.recipeId,
+      );
+      return recipe ?? reply.code(404).send({ code: "recipe_not_found" });
+    },
+  );
+
+  app.put<{
+    Body: {
+      components: Array<{ ingredientId: string; quantityGrams: string }>;
+      name: string;
+      notes?: string;
+      yieldGrams: string;
+    };
+    Params: { recipeId: string };
+  }>("/recipes/:recipeId", { schema: { tags: ["recipes"] } }, async (request) => {
+    const identity = await requireIdentity(request);
+    return requireWorkflowService().updateRecipe(
+      identity.userId,
+      request.params.recipeId,
+      request.body,
+    );
+  });
+
+  app.delete<{ Params: { recipeId: string } }>(
+    "/recipes/:recipeId",
+    { schema: { tags: ["recipes"] } },
+    async (request, reply) => {
+      const identity = await requireIdentity(request);
+      await requireWorkflowService().deleteRecipe(identity.userId, request.params.recipeId);
+      return reply.code(204).send();
+    },
+  );
+
+  app.post<{
+    Body: { consumedAt: string; consumedGrams: string; note?: string; recipeId: string };
+  }>("/rations", { schema: { tags: ["rations"] } }, async (request) => {
+    const identity = await requireIdentity(request);
+    const user = await requireAuthService().currentUser(identity.userId);
+    return requireWorkflowService().createRation(identity.userId, user.timezone, request.body);
+  });
+
+  app.get<{ Querystring: { cursor?: string; date?: string; limit?: string } }>(
+    "/rations",
+    { schema: { tags: ["rations"] } },
+    async (request) => {
+      const identity = await requireIdentity(request);
+      const limit = request.query.limit === undefined ? undefined : Number(request.query.limit);
+      return requireWorkflowService().listRations(identity.userId, {
+        cursor: request.query.cursor,
+        date: request.query.date,
+        limit,
+      });
+    },
+  );
+
+  app.put<{
+    Body: { effectiveLocalDate: string; nutrients: Array<{ amount: string; code: string }> };
+  }>("/goals", { schema: { tags: ["goals"] } }, async (request) => {
+    const identity = await requireIdentity(request);
+    return requireWorkflowService().setGoal(identity.userId, request.body);
+  });
+
+  app.get<{ Querystring: { date: string } }>(
+    "/goals",
+    { schema: { tags: ["goals"] } },
+    async (request, reply) => {
+      const identity = await requireIdentity(request);
+      const goal = await requireWorkflowService().goalForDate(identity.userId, request.query.date);
+      return goal ?? reply.code(404).send({ code: "goal_not_found" });
+    },
+  );
+
+  app.get<{ Querystring: { date: string } }>(
+    "/dashboard",
+    { schema: { tags: ["dashboard"] } },
+    async (request) => {
+      const identity = await requireIdentity(request);
+      return requireWorkflowService().dashboard(identity.userId, request.query.date);
+    },
+  );
+
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof AuthError) {
       if (error.retryAfterSeconds) {
@@ -297,6 +417,9 @@ export async function buildApp({ config, database }: BuildAppOptions = {}) {
         .send({ code: error.code, message: "Authentication request could not be completed" });
     }
     if (error instanceof IngredientError) {
+      return reply.code(error.statusCode).send({ code: error.code });
+    }
+    if (error instanceof WorkflowError) {
       return reply.code(error.statusCode).send({ code: error.code });
     }
     return reply.send(error);

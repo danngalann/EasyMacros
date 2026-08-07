@@ -63,4 +63,18 @@ describe("health endpoint", () => {
     expect(document.info.version).toBe("0.2.0");
     expect(document.paths).toHaveProperty("/v1/health/ready");
   });
+
+  it("publishes the nutrition workflow contracts in OpenAPI", async () => {
+    const app = await buildApp();
+    apps.add(app);
+    await app.ready();
+
+    const paths = app.swagger().paths;
+
+    expect(paths).toHaveProperty("/recipes");
+    expect(paths).toHaveProperty("/recipes/{recipeId}");
+    expect(paths).toHaveProperty("/rations");
+    expect(paths).toHaveProperty("/goals");
+    expect(paths).toHaveProperty("/dashboard");
+  });
 });
