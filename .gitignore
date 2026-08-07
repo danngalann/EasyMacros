@@ -1,0 +1,23 @@
+# Temporary agent planning material. Delete this rule when .planning is removed.
+.planning/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.local
+local.properties
+*.jks
+*.keystore
+
+# Dependencies, build output, and IDE state
+node_modules/
+dist/
+coverage/
+.gradle/
+.kotlin/
+**/build/
+.idea/
+.vscode/
+*.iml
+
