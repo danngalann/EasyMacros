@@ -37,3 +37,13 @@ version. Ration creation similarly snapshots the then-current recipe version and
 Goal replacement keeps one profile per user/effective local date. Dashboard totals are
 the PostgreSQL sum of non-deleted ration snapshots for a requested local date; calories
 are calculated from those totals using the canonical macro formula.
+
+Phase 9 exposes snapshot details and a delete-then-re-log correction workflow. A
+deleted ration no longer contributes to history or dashboard totals, but its nutrient
+snapshot is never recalculated or modified in place. Ration contribution previews are
+calculated server-side from the current active recipe and create no record.
+
+Changing a user's IANA timezone atomically reclassifies active rations' local dates from
+their stored UTC instants and records the new timezone on those rows. This deliberately
+changes historical dashboard-day grouping while preserving each ration's consumption
+instant and nutrient snapshot.

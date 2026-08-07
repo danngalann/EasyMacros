@@ -91,3 +91,33 @@ inclusion, server-preview display, and duplicate-save prevention. Run it with:
 cd android
 ./gradlew testDebugUnitTest --tests 'com.danngalann.easymacros.ui.RecipesViewModelTest'
 ```
+
+## Phase 9: Tracking state, time, and history
+
+`TrackingViewModel` is the authenticated tracking screen's owner. It exposes immutable
+`TrackingUiState` via `StateFlow`; `TrackingScreen` collects it with lifecycle-aware
+collection, so configuration changes retain selected dates, drafts, filters, detail,
+and confirmation state while recomposition only redraws the current state. Network
+calls run from `viewModelScope`, and the recipe lookup cancels the earlier search job
+before a short debounce, preventing stale search responses from replacing newer input.
+
+Ration times cross two domains. Android sends an ISO-8601 instant, while the server uses
+the user's IANA timezone to derive a local day. The UI accepts no meal category. It
+requests `POST /rations/preview` before enabling confirmation, so displayed nutrients
+and calories remain server-authoritative. A history detail renders its stored snapshot;
+correction deletes it and asks the user to log a replacement rather than editing that
+snapshot in place.
+
+Goals are effective-dated and use positive decimal strings. Progress is presentation
+only: when consumed amount exceeds a target, the screen exposes an over-goal label and
+caps the progress bar's visual fraction at one. The underlying amount is never capped.
+History carries the backend's opaque cursor forward for the next page, rather than
+constructing an offset in Android.
+
+`TrackingViewModelTest` proves a selected day loads both dashboard and ration history,
+and that logging uses a returned server preview. Run it with:
+
+```sh
+cd android
+./gradlew testDebugUnitTest --tests 'com.danngalann.easymacros.ui.TrackingViewModelTest'
+```

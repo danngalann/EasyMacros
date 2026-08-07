@@ -46,3 +46,16 @@ recomposition and configuration changes, validates positive decimal inputs befor
 request, prevents duplicate submissions, and asks `POST /recipes/preview` for display
 totals. Creating or updating then receives the persisted immutable version from the
 server; Android never calculates recipe nutrients itself.
+
+Phase 9 replaces the dashboard-only authenticated view with `TrackingViewModel` and a
+coordinated dashboard, log-ration, goals, history, and settings workspace. The
+ViewModel owns immutable `TrackingUiState`: selected date, server dashboard, ration
+pages, destructive confirmation, log draft, server preview, effective-date goals, and
+timezone update state. `TrackingRepository` maps protected ration, goal, and profile
+DTOs to UI models. Recipe search for the log flow is debounced and cancellable; history
+uses the server's opaque keyset cursor. Compose never calculates a persisted ration's
+nutrients or calories, instead rendering `POST /rations/preview` and dashboard values.
+
+Timezone changes are explicit and warn that the backend reclassifies existing ration
+days while retaining their instant and nutrient snapshots. Corrections delete a ration
+and require a new log, so the UI does not offer an in-place edit of historical totals.

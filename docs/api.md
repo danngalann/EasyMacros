@@ -123,3 +123,33 @@ effective on or before the requested date; it returns `404` when none exists.
 `GET /dashboard` returns the day-local summed ration nutrients, authoritative derived
 calories, and the effective goal profile. All mutable-resource reads and writes are
 scoped to the authenticated user in their database query.
+
+## Tracking and profile settings
+
+Phase 9 adds Android-facing ration management and profile timezone endpoints:
+
+```http
+POST   /rations/preview
+GET    /rations/{rationId}
+DELETE /rations/{rationId}
+PUT    /me/timezone
+```
+
+`POST /rations/preview` accepts an active `recipeId` and positive decimal
+`consumedGrams`. It returns that recipe snapshot's proportional nutrients and
+calories without persisting a ration. Clients must use this returned value for the
+contribution review; only `POST /rations` creates the immutable snapshot.
+
+`GET /rations` also accepts optional `from`, `to`, and `query` parameters. `from` and
+`to` are inclusive `YYYY-MM-DD` local-date bounds; `query` searches the ration's
+snapshotted recipe name and note. Results remain owner-scoped, keyset-paginated, and
+bounded to 100 items per request.
+
+`GET /rations/{rationId}` returns the immutable recipe name, yield, consumption, local
+date/timezone, note, nutrient snapshot, and derived calories. `DELETE /rations/{rationId}`
+soft-deletes the logged ration. Correction is deliberately delete-then-re-log; it does
+not alter a ration snapshot in place.
+
+`PUT /me/timezone` accepts an IANA timezone. It atomically updates the profile and
+reclassifies all active ration `consumed_local_date` values from their immutable
+instants in the new timezone. Nutrient snapshots and consumption instants do not change.

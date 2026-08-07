@@ -72,3 +72,15 @@
       server-authoritative preview, immutable version updates, and duplicate-submit prevention
 - [x] Recipe deletion confirmation explaining active-recipe removal and retained ration snapshots
 - [x] Focused recipe ViewModel regression tests and protected backend preview workflow coverage
+
+## Phase 9 checklist
+
+- [x] Android date dashboard with authoritative macro progress, calories, day rations,
+      loading, empty, retry, and manual refresh states
+- [x] Server-authoritative ration preview and Android log confirmation flow without meal categories
+- [x] Effective-dated Android goal editor and protected profile timezone setting
+- [x] Owner-scoped ration history search/date filters, keyset paging, immutable detail, and
+      delete-then-re-log correction flow
+- [x] Coordinated dashboard, recipe, log, history, goals, and settings navigation
+- [x] Focused backend workflow/route and Android tracking ViewModel regression coverage
+- [ ] Local end-to-end, DST, over-goal, and Compose network-error coverage from the Phase 9 gate
