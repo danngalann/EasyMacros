@@ -1,9 +1,13 @@
 import { Pool } from "pg";
+import type { QueryResultRow } from "pg";
 
 export interface Database {
   close(): Promise<void>;
   isReady(): Promise<boolean>;
-  query(sql: string): Promise<void>;
+  query<Row extends QueryResultRow = QueryResultRow>(
+    sql: string,
+    values?: readonly unknown[],
+  ): Promise<{ rows: Row[] }>;
 }
 
 export function createDatabase(connectionString: string): Database {
@@ -21,8 +25,9 @@ export function createDatabase(connectionString: string): Database {
         return false;
       }
     },
-    async query(sql) {
-      await pool.query(sql);
+    async query<Row extends QueryResultRow>(sql: string, values?: readonly unknown[]) {
+      const result = values ? await pool.query<Row>(sql, [...values]) : await pool.query<Row>(sql);
+      return { rows: result.rows };
     },
   };
 }
