@@ -33,7 +33,13 @@
       IP-rotation tradeoff
 - [x] Authentication API contract, environment configuration, and secret rotation guidance
 
-## Deferred requirements
+## Phase 4 checklist
 
-Authentication and all nutrient/product behavior are explicitly deferred to their
-documented later phases.
+- [x] Extensible, idempotently seeded nutrient definitions with canonical units
+- [x] Decimal-safe recipe/ration scaling and authoritative $4/4/9$ calorie calculation
+- [x] User-owned ingredient storage, immutable revisions, manual candidate confirmation,
+      visibility controls, and owner-scoped nutrient/ingredient API reads
+- [x] Immutable recipe/ration snapshot and effective-dated goal database model with
+      ownership, positivity, soft-deletion, and history indexes
+- [ ] Recipe, ration, goal, dashboard, and search API workflows
+- [ ] PostgreSQL integration tests for snapshot, timezone, pagination, and concurrency behavior

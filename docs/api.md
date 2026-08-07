@@ -55,3 +55,23 @@ After three failed login attempts for a normalized username/IP pair, the API res
 with `429`, a generic problem response, and `Retry-After`. A successful login clears
 that pair's state. This is intentionally pair-keyed, so reverse-proxy limits remain
 necessary for IP-rotating attacks.
+
+## Nutrition foundation
+
+Phase 4 adds authenticated nutrition endpoints:
+
+```http
+GET   /nutrients
+GET   /ingredients?query=&hidden=false
+GET   /ingredients/{ingredientId}
+POST  /ingredients/manual-candidates
+POST  /ingredient-candidates/{candidateId}/confirm
+PATCH /ingredients/{ingredientId}
+PATCH /ingredients/{ingredientId}/visibility
+```
+
+Manual candidates require a name and unique, non-negative decimal nutrient amounts
+for protein, carbohydrates, and fat. Confirmation requires the candidate version and
+creates exactly one user-owned ingredient. Ingredients have no deletion endpoint;
+visibility controls whether they appear in the default list while preserving details
+and historical snapshots.

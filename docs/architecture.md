@@ -15,5 +15,9 @@ check. Timestamped SQL migrations are applied transactionally and tracked in the
 `schema_migrations` table. The API publishes its OpenAPI document and interactive
 documentation through Fastify plugins.
 
-The Android module has one activity and a Compose root. It contains no navigation,
-networking, or product state in Phase 2.
+Phase 4 adds a PostgreSQL nutrition domain. The seeded nutrient catalog is shared by
+user-owned ingredients, immutable recipe-version snapshots, ration snapshots, and
+effective-dated goal profiles. Decimal calculation utilities use `decimal.js`; the
+database stores authoritative amounts as `numeric(14,6)`. Manual candidate confirmation
+creates an ingredient and an immutable revision. The Android module still has one
+activity and a Compose root; Android nutrition UI is deferred to later phases.
