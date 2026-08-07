@@ -1,0 +1,5 @@
+.planning/
+android/
+backend/coverage/
+backend/dist/
+pnpm-lock.yaml
