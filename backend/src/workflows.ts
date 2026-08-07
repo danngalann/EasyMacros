@@ -37,8 +37,9 @@ export class WorkflowError extends Error {
       | "invalid_ration"
       | "invalid_recipe"
       | "invalid_timezone"
+      | "recipe_conflict"
       | "recipe_not_found",
-    readonly statusCode: 400 | 404,
+    readonly statusCode: 400 | 404 | 409,
   ) {
     super(code);
   }
@@ -68,16 +69,42 @@ export class NutritionWorkflowService {
     });
   }
 
-  async updateRecipe(userId: string, recipeId: string, input: RecipeInput) {
+  async previewRecipe(userId: string, input: RecipeInput) {
+    validateRecipe(input);
+    const snapshot = await ingredientSnapshots(this.database, userId, input.components);
+    const nutrients = calculateRecipeNutrients(
+      input.components.map((component) => ({
+        quantityGrams: component.quantityGrams,
+        nutrients: snapshot.get(component.ingredientId)!.nutrients,
+      })),
+    );
+    return {
+      name: input.name.trim(),
+      yieldGrams: input.yieldGrams,
+      nutrients,
+      calories: calculateCalories(nutrients),
+    };
+  }
+
+  async updateRecipe(
+    userId: string,
+    recipeId: string,
+    input: RecipeInput & { expectedVersion?: number },
+  ) {
     validateRecipe(input);
     return this.database.transaction(async (database) => {
       const recipe = (
-        await database.query<{ id: string }>(
-          `SELECT id FROM recipes WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL FOR UPDATE`,
+        await database.query<{ id: string; versionNumber: number }>(
+          `SELECT r.id, v.version_number AS "versionNumber" FROM recipes r
+           JOIN recipe_versions v ON v.id = r.current_version_id
+           WHERE r.id = $1 AND r.user_id = $2 AND r.deleted_at IS NULL FOR UPDATE`,
           [recipeId, userId],
         )
       ).rows[0];
       if (!recipe) throw new WorkflowError("recipe_not_found", 404);
+      if (input.expectedVersion !== undefined && input.expectedVersion !== recipe.versionNumber) {
+        throw new WorkflowError("recipe_conflict", 409);
+      }
       const snapshot = await ingredientSnapshots(database, userId, input.components);
       const nutrients = calculateRecipeNutrients(
         input.components.map((component) => ({

@@ -310,6 +310,7 @@ export async function buildApp({ config, database }: BuildAppOptions = {}) {
   app.post<{
     Body: {
       components: Array<{ ingredientId: string; quantityGrams: string }>;
+      expectedVersion?: number;
       name: string;
       notes?: string;
       yieldGrams: string;
@@ -317,6 +318,18 @@ export async function buildApp({ config, database }: BuildAppOptions = {}) {
   }>("/recipes", { schema: { tags: ["recipes"] } }, async (request) => {
     const identity = await requireIdentity(request);
     return requireWorkflowService().createRecipe(identity.userId, request.body);
+  });
+
+  app.post<{
+    Body: {
+      components: Array<{ ingredientId: string; quantityGrams: string }>;
+      name: string;
+      notes?: string;
+      yieldGrams: string;
+    };
+  }>("/recipes/preview", { schema: { tags: ["recipes"] } }, async (request) => {
+    const identity = await requireIdentity(request);
+    return requireWorkflowService().previewRecipe(identity.userId, request.body);
   });
 
   app.get<{ Params: { recipeId: string } }>(
