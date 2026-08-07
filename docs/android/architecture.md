@@ -30,3 +30,10 @@ client so the refresh request cannot recurse through the authenticator.
 The API base URL is a `BuildConfig` value. Debug builds use the Android emulator host
 address `http://10.0.2.2:3000/`; release builds must provide a TLS endpoint before
 distribution. Network bodies and bearer tokens are never logged.
+
+Phase 7 replaces the authenticated placeholder with a daily dashboard. `DashboardApi`
+calls the protected `GET /dashboard` endpoint through the same bearer-token interceptor
+and refresh authenticator. `DashboardRepository` maps wire DTOs into display models;
+the `DashboardViewModel` owns the selected `LocalDate` and its immutable loading,
+content, and error state. The app displays server-provided nutrient totals and calories
+without independently recalculating them.

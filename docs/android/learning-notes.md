@@ -43,3 +43,21 @@ auth or main shell once storage and any required refresh finish.
 shell, successful authentication switches shells, and a failure remains visible to the
 form. Run `./gradlew test` from `android/` for JVM coverage and
 `./gradlew lint test assembleDebug` for the Android phase gate.
+
+## Phase 7: Daily dashboard
+
+`DashboardViewModel` is Hilt-created for the authenticated dashboard and retains the
+selected `LocalDate` across activity configuration changes. It exposes immutable
+`DashboardUiState` through `StateFlow`; Compose collects that flow with lifecycle
+awareness, so recomposition redraws loading, content, or retry UI without launching
+duplicate requests. Date changes call the repository through `viewModelScope`, which
+keeps network work off the main thread and is cancelled when the ViewModel is cleared.
+
+The dashboard API response remains a wire DTO in `data/api`; `DashboardRepository`
+maps it to a domain/display model before it reaches Compose. Amounts and calories remain
+strings because the backend owns decimal-safe calculation and serialization. The UI only
+formats those values for display, avoiding a second authoritative calculation on Android.
+`DashboardViewModelTest` verifies initial content, date navigation, and retryable
+failure state. A useful debugging check is to compare the requested `date` query value
+with the user's stored timezone: the backend, rather than the device timezone, defines
+the dashboard's local-day totals.

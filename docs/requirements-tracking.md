@@ -58,3 +58,9 @@
 - [x] Login/register and authenticated app-shell selection with loading and preserved errors
 - [x] Process-restart session restoration and single-flight refresh coordination
 - [x] Focused ViewModel authentication regression tests
+
+## Phase 7 checklist
+
+- [x] Authenticated Android daily dashboard with date navigation and authoritative server totals
+- [x] Dashboard DTO-to-domain mapping with protected Retrofit access and refresh support
+- [x] Loading, empty, retry, offline, and session-expiry states with focused ViewModel tests
