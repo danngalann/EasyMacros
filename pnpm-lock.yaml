@@ -18,8 +18,8 @@ importers:
         specifier: 10.1.8
         version: 10.1.8(eslint@9.39.1)
       globals:
-        specifier: 16.5.0
-        version: 16.5.0
+        specifier: 17.9.0
+        version: 17.9.0
       husky:
         specifier: 9.1.7
         version: 9.1.7
@@ -1022,8 +1022,8 @@ packages:
     resolution: {integrity: sha512-oahGvuMGQlPw/ivIYBjVSrWAfWLBeku5tpPE2fOPLi+WHffIWbuh2tCjhyQhTBPMf5E9jDEH4FOmTYgYwbKwtQ==}
     engines: {node: '>=18'}
 
-  globals@16.5.0:
-    resolution: {integrity: sha512-c/c15i26VrJ4IRt5Z89DnIzCGDn9EcebibhAOjw5ibqEHsE1wLUgkPn9RDmNcUKyU87GeaL633nyJ+pplFR2ZQ==}
+  globals@17.9.0:
+    resolution: {integrity: sha512-m/MvAW61QVU5VDNF1Vj8axt016h8w7L5TU1e9zlab7XIttAT2YAlCwl75K1fOqvMM9apmD7lbCIRhpfkhmxhCg==}
     engines: {node: '>=18'}
 
   graphemer@1.4.0:
@@ -2458,7 +2458,7 @@ snapshots:
 
   globals@14.0.0: {}
 
-  globals@16.5.0: {}
+  globals@17.9.0: {}
 
   graphemer@1.4.0: {}
 
