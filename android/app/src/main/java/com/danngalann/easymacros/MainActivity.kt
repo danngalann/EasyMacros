@@ -3,19 +3,15 @@ package com.danngalann.easymacros
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import dagger.hilt.android.AndroidEntryPoint
+import com.danngalann.easymacros.ui.EasyMacrosApp
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme {
-                Surface {
-                    Text(text = "EasyMacros")
-                }
-            }
+            EasyMacrosApp()
         }
     }
 }
