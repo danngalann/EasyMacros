@@ -41,5 +41,13 @@
       visibility controls, and owner-scoped nutrient/ingredient API reads
 - [x] Immutable recipe/ration snapshot and effective-dated goal database model with
       ownership, positivity, soft-deletion, and history indexes
-- [ ] Recipe, ration, goal, dashboard, and search API workflows
+- [x] Recipe versioning/search, ration logging/history, effective-dated goals, and daily
+      dashboard API workflows
 - [ ] PostgreSQL integration tests for snapshot, timezone, pagination, and concurrency behavior
+
+## Phase 5 checklist
+
+- [x] Owner-scoped recipe creation, immutable version updates, search, detail, and soft deletion
+- [x] Atomic ration snapshots with user-timezone local dates and deterministic cursor pagination
+- [x] Effective-dated goal profiles and authoritative daily dashboard totals/calories
+- [x] Published authenticated API contracts and focused workflow route regression coverage

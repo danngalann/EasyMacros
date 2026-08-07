@@ -26,3 +26,14 @@ Deleting a recipe is a soft delete that prevents new rations without changing ol
 snapshots. Rations snapshot a version's name, yield, nutrients, consumed UTC instant,
 and immutable local date derived in the user's IANA timezone. Goals are versioned by
 effective local date, so historical progress remains interpretable.
+
+Phase 5 exposes these models through owner-scoped workflows. Recipe creation and updates
+run transactionally: each version snapshots every selected ingredient's name and nutrient
+values, calculates six-decimal totals, and atomically changes the recipe's current
+version. Ration creation similarly snapshots the then-current recipe version and derives
+`consumed_local_date` from the user's stored IANA timezone. Ration history uses the
+`(consumed_local_date, consumed_at, id)` ordering as its opaque cursor boundary.
+
+Goal replacement keeps one profile per user/effective local date. Dashboard totals are
+the PostgreSQL sum of non-deleted ration snapshots for a requested local date; calories
+are calculated from those totals using the canonical macro formula.

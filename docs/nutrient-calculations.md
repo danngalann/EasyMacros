@@ -19,3 +19,8 @@ Values are rounded half-up to six decimal places only when serialized. Recipe yi
 component weights, consumed weights, and goal amounts must be positive; nutrient
 amounts must be finite and non-negative. Calories are derived from the ration snapshot
 using `protein_g * 4 + carbohydrates_g * 4 + fat_g * 9`; label energy is not used.
+
+Phase 5 persists recipe and ration calculations as immutable snapshots inside the same
+transaction as their parent record. The dashboard sums persisted ration nutrients and
+then derives calories from that sum, rather than recalculating from mutable ingredients
+or recipes.

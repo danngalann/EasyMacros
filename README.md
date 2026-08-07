@@ -4,9 +4,9 @@
 > behavior, contract, command, configuration, or architecture changes.
 
 EasyMacros is an open-source, self-hostable nutrient tracker. It pairs a native Android
-application with a TypeScript API and PostgreSQL. Phase 3 provides backend
-authentication, sessions, and login abuse protection; nutrient product features are
-not implemented yet.
+application with a TypeScript API and PostgreSQL. Phase 5 provides authenticated backend
+workflows for ingredients, immutable recipe versions, ration logging, effective-dated
+goals, and daily dashboard totals. Android nutrition UI is planned for a later phase.
 
 ## Prerequisites
 

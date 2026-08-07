@@ -21,3 +21,9 @@ effective-dated goal profiles. Decimal calculation utilities use `decimal.js`; t
 database stores authoritative amounts as `numeric(14,6)`. Manual candidate confirmation
 creates an ingredient and an immutable revision. The Android module still has one
 activity and a Compose root; Android nutrition UI is deferred to later phases.
+
+Phase 5 adds a transactional backend workflow service. Recipe version creation, ration
+logging, and goal replacement each run on a single PostgreSQL transaction. The service
+performs the calculation and snapshot work; Fastify routes only authenticate callers,
+obtain the stored timezone when logging rations, and map domain errors to API responses.
+Ration pagination is keyset-based on the history index ordering rather than offset-based.
