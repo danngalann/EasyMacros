@@ -3,9 +3,12 @@ package com.danngalann.easymacros.di
 import com.danngalann.easymacros.BuildConfig
 import com.danngalann.easymacros.data.api.AuthApi
 import com.danngalann.easymacros.data.api.AuthHeaderInterceptor
+import com.danngalann.easymacros.data.api.DashboardApi
 import com.danngalann.easymacros.data.api.RefreshAuthenticator
 import com.danngalann.easymacros.data.repository.AuthRepository
+import com.danngalann.easymacros.data.repository.DashboardRepository
 import com.danngalann.easymacros.data.repository.DefaultAuthRepository
+import com.danngalann.easymacros.data.repository.DefaultDashboardRepository
 import com.danngalann.easymacros.data.repository.EncryptedSessionStore
 import com.danngalann.easymacros.data.repository.SessionStore
 import dagger.Binds
@@ -24,6 +27,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 abstract class RepositoryModule {
     @Binds abstract fun bindSessionStore(store: EncryptedSessionStore): SessionStore
     @Binds abstract fun bindAuthRepository(repository: DefaultAuthRepository): AuthRepository
+    @Binds abstract fun bindDashboardRepository(repository: DefaultDashboardRepository): DashboardRepository
 }
 
 @Module
@@ -44,4 +48,14 @@ object NetworkModule {
         .addConverterFactory(GsonConverterFactory.create())
         .build()
         .create(AuthApi::class.java)
+
+    @Provides @Singleton fun provideDashboardApi(
+        interceptor: AuthHeaderInterceptor,
+        authenticator: RefreshAuthenticator,
+    ): DashboardApi = Retrofit.Builder()
+        .baseUrl(BuildConfig.API_BASE_URL)
+        .client(OkHttpClient.Builder().addInterceptor(interceptor).authenticator(authenticator).build())
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
+        .create(DashboardApi::class.java)
 }

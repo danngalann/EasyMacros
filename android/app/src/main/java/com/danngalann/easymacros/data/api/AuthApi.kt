@@ -3,6 +3,7 @@ package com.danngalann.easymacros.data.api
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.Query
 
 interface AuthApi {
     @POST("auth/login")
@@ -30,6 +31,21 @@ data class TokenResponse(
     val sessionId: String,
 )
 data class UserResponse(val id: String, val username: String, val timezone: String)
+
+interface DashboardApi {
+    @GET("dashboard")
+    suspend fun dashboard(@Query("date") date: String): DashboardResponse
+}
+
+data class DashboardResponse(
+    val date: String,
+    val nutrients: List<NutrientAmountResponse>,
+    val calories: String,
+    val goal: GoalResponse?,
+)
+
+data class NutrientAmountResponse(val code: String, val amount: String)
+data class GoalResponse(val effectiveLocalDate: String, val nutrients: List<NutrientAmountResponse>)
 
 sealed class ApiException : Exception() {
     data class Http(val statusCode: Int, val retryAfterSeconds: Int?) : ApiException()
