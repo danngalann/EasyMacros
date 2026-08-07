@@ -62,3 +62,42 @@ describe("recipe updates", () => {
     ).rejects.toMatchObject({ code: "recipe_conflict", statusCode: 409 });
   });
 });
+
+describe("ration history", () => {
+  it("scopes deletion to the owner and rejects a missing active ration", async () => {
+    const queries: Array<{ sql: string; values: unknown[] | undefined }> = [];
+    const database = {
+      query: (sql: string, values?: unknown[]) => {
+        queries.push({ sql, values });
+        return Promise.resolve({ rows: [] });
+      },
+    };
+    const service = new NutritionWorkflowService(database as never);
+
+    await expect(service.deleteRation("user-1", "ration-1")).rejects.toMatchObject({
+      code: "ration_not_found",
+      statusCode: 404,
+    });
+    expect(queries[0]).toMatchObject({ values: ["ration-1", "user-1"] });
+    expect(queries[0]?.sql).toContain("user_id = $2");
+  });
+
+  it("reclassifies active ration dates when the timezone changes", async () => {
+    const queries: Array<{ sql: string; values: unknown[] | undefined }> = [];
+    const database = {
+      transaction: async <T>(operation: (transaction: never) => Promise<T>) =>
+        operation(database as never),
+      query: (sql: string, values?: unknown[]) => {
+        queries.push({ sql, values });
+        return Promise.resolve({ rows: [{}] });
+      },
+    };
+    const service = new NutritionWorkflowService(database as never);
+
+    await expect(service.updateTimezone("user-1", "America/New_York")).resolves.toEqual({
+      timezone: "America/New_York",
+    });
+    expect(queries[1]?.sql).toContain("consumed_at AT TIME ZONE $2");
+    expect(queries[1]).toMatchObject({ values: ["user-1", "America/New_York"] });
+  });
+});

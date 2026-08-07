@@ -380,17 +380,66 @@ export async function buildApp({ config, database }: BuildAppOptions = {}) {
     return requireWorkflowService().createRation(identity.userId, user.timezone, request.body);
   });
 
-  app.get<{ Querystring: { cursor?: string; date?: string; limit?: string } }>(
-    "/rations",
+  app.post<{ Body: { consumedGrams: string; recipeId: string } }>(
+    "/rations/preview",
     { schema: { tags: ["rations"] } },
     async (request) => {
       const identity = await requireIdentity(request);
-      const limit = request.query.limit === undefined ? undefined : Number(request.query.limit);
-      return requireWorkflowService().listRations(identity.userId, {
-        cursor: request.query.cursor,
-        date: request.query.date,
-        limit,
-      });
+      return requireWorkflowService().previewRation(identity.userId, request.body);
+    },
+  );
+
+  app.get<{
+    Querystring: {
+      cursor?: string;
+      date?: string;
+      from?: string;
+      limit?: string;
+      query?: string;
+      to?: string;
+    };
+  }>("/rations", { schema: { tags: ["rations"] } }, async (request) => {
+    const identity = await requireIdentity(request);
+    const limit = request.query.limit === undefined ? undefined : Number(request.query.limit);
+    return requireWorkflowService().listRations(identity.userId, {
+      cursor: request.query.cursor,
+      date: request.query.date,
+      from: request.query.from,
+      limit,
+      query: request.query.query,
+      to: request.query.to,
+    });
+  });
+
+  app.get<{ Params: { rationId: string } }>(
+    "/rations/:rationId",
+    { schema: { tags: ["rations"] } },
+    async (request, reply) => {
+      const identity = await requireIdentity(request);
+      const ration = await requireWorkflowService().detailRation(
+        identity.userId,
+        request.params.rationId,
+      );
+      return ration ?? reply.code(404).send({ code: "ration_not_found" });
+    },
+  );
+
+  app.delete<{ Params: { rationId: string } }>(
+    "/rations/:rationId",
+    { schema: { tags: ["rations"] } },
+    async (request, reply) => {
+      const identity = await requireIdentity(request);
+      await requireWorkflowService().deleteRation(identity.userId, request.params.rationId);
+      return reply.code(204).send();
+    },
+  );
+
+  app.put<{ Body: { timezone: string } }>(
+    "/me/timezone",
+    { schema: { tags: ["profile"] } },
+    async (request) => {
+      const identity = await requireIdentity(request);
+      return requireWorkflowService().updateTimezone(identity.userId, request.body.timezone);
     },
   );
 

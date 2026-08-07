@@ -38,7 +38,8 @@ export class WorkflowError extends Error {
       | "invalid_recipe"
       | "invalid_timezone"
       | "recipe_conflict"
-      | "recipe_not_found",
+      | "recipe_not_found"
+      | "ration_not_found",
     readonly statusCode: 400 | 404 | 409,
   ) {
     super(code);
@@ -226,13 +227,63 @@ export class NutritionWorkflowService {
     });
   }
 
-  async listRations(userId: string, input: { cursor?: string; date?: string; limit?: number }) {
+  async previewRation(userId: string, input: { consumedGrams: string; recipeId: string }) {
+    if (!positiveDecimal(input.consumedGrams) || !input.recipeId) {
+      throw new WorkflowError("invalid_ration", 400);
+    }
+    const version = (
+      await this.database.query<RecipeVersionRow>(
+        `SELECT v.id, v.recipe_id AS "recipeId", v.name, v.yield_grams::text AS "yieldGrams",
+                v.notes, v.version_number AS "versionNumber"
+         FROM recipes r JOIN recipe_versions v ON v.id = r.current_version_id
+         WHERE r.id = $1 AND r.user_id = $2 AND r.deleted_at IS NULL`,
+        [input.recipeId, userId],
+      )
+    ).rows[0];
+    if (!version) throw new WorkflowError("recipe_not_found", 404);
+    const nutrients = (
+      await this.database.query<NutrientAmount>(
+        `SELECT nutrient_code AS code, amount::text AS amount FROM recipe_version_nutrients
+         WHERE recipe_version_id = $1 ORDER BY nutrient_code`,
+        [version.id],
+      )
+    ).rows;
+    const rationNutrients = calculateRationNutrients(
+      nutrients,
+      input.consumedGrams,
+      version.yieldGrams,
+    );
+    return {
+      recipeName: version.name,
+      nutrients: rationNutrients,
+      calories: calculateCalories(rationNutrients),
+    };
+  }
+
+  async listRations(
+    userId: string,
+    input: {
+      cursor?: string;
+      date?: string;
+      from?: string;
+      limit?: number;
+      query?: string;
+      to?: string;
+    },
+  ) {
     const requestedLimit = input.limit ?? 50;
     if (!Number.isInteger(requestedLimit) || requestedLimit < 1) {
       throw new WorkflowError("invalid_ration", 400);
     }
     const limit = Math.min(requestedLimit, 100);
-    if (input.date && !dateOnly(input.date)) throw new WorkflowError("invalid_ration", 400);
+    if (
+      (input.date && !dateOnly(input.date)) ||
+      (input.from && !dateOnly(input.from)) ||
+      (input.to && !dateOnly(input.to)) ||
+      (input.from && input.to && input.from > input.to)
+    ) {
+      throw new WorkflowError("invalid_ration", 400);
+    }
     const cursor = input.cursor ? decodeCursor(input.cursor) : undefined;
     const rows = (
       await this.database.query<{
@@ -247,11 +298,17 @@ export class NutritionWorkflowService {
                 consumed_local_date::text AS "consumedLocalDate", recipe_name AS "recipeName", note
          FROM rations WHERE user_id = $1 AND deleted_at IS NULL
            AND ($2::date IS NULL OR consumed_local_date = $2::date)
-           AND ($3::date IS NULL OR (consumed_local_date, consumed_at, id) < ($3::date, $4::timestamptz, $5::uuid))
-         ORDER BY consumed_local_date DESC, consumed_at DESC, id DESC LIMIT $6`,
+           AND ($3::date IS NULL OR consumed_local_date >= $3::date)
+           AND ($4::date IS NULL OR consumed_local_date <= $4::date)
+           AND ($5 = '' OR recipe_name ILIKE '%' || $5 || '%' OR COALESCE(note, '') ILIKE '%' || $5 || '%')
+           AND ($6::date IS NULL OR (consumed_local_date, consumed_at, id) < ($6::date, $7::timestamptz, $8::uuid))
+         ORDER BY consumed_local_date DESC, consumed_at DESC, id DESC LIMIT $9`,
         [
           userId,
           input.date ?? null,
+          input.from ?? null,
+          input.to ?? null,
+          input.query?.trim() ?? "",
           cursor?.date ?? null,
           cursor?.instant ?? null,
           cursor?.id ?? null,
@@ -268,6 +325,61 @@ export class NutritionWorkflowService {
           ? encodeCursor(last.consumedLocalDate, last.consumedAt, last.id)
           : undefined,
     };
+  }
+
+  async detailRation(userId: string, rationId: string) {
+    const ration = (
+      await this.database.query<{
+        consumedAt: string;
+        consumedGrams: string;
+        consumedLocalDate: string;
+        id: string;
+        note: string | null;
+        recipeName: string;
+        recipeYieldGrams: string;
+        timezone: string;
+      }>(
+        `SELECT id, consumed_grams::text AS "consumedGrams", consumed_at AS "consumedAt",
+                consumed_local_date::text AS "consumedLocalDate", recipe_name AS "recipeName",
+                recipe_yield_grams::text AS "recipeYieldGrams", timezone, note
+         FROM rations WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
+        [rationId, userId],
+      )
+    ).rows[0];
+    if (!ration) return undefined;
+    const nutrients = (
+      await this.database.query<NutrientAmount>(
+        `SELECT nutrient_code AS code, amount::text AS amount FROM ration_nutrients
+         WHERE ration_id = $1 ORDER BY nutrient_code`,
+        [rationId],
+      )
+    ).rows;
+    return { ...ration, nutrients, calories: calculateCalories(nutrients) };
+  }
+
+  async deleteRation(userId: string, rationId: string): Promise<void> {
+    const result = await this.database.query(
+      `UPDATE rations SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL RETURNING id`,
+      [rationId, userId],
+    );
+    if (!result.rows[0]) throw new WorkflowError("ration_not_found", 404);
+  }
+
+  async updateTimezone(userId: string, timezone: string) {
+    dateInTimezone("2026-01-01T00:00:00.000Z", timezone);
+    return this.database.transaction(async (database) => {
+      await database.query(
+        `UPDATE users SET timezone = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+        [userId, timezone],
+      );
+      await database.query(
+        `UPDATE rations SET consumed_local_date = (consumed_at AT TIME ZONE $2)::date,
+         timezone = $2, updated_at = CURRENT_TIMESTAMP WHERE user_id = $1 AND deleted_at IS NULL`,
+        [userId, timezone],
+      );
+      return { timezone };
+    });
   }
 
   async setGoal(

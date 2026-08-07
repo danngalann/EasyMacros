@@ -74,7 +74,10 @@ describe("health endpoint", () => {
     expect(paths).toHaveProperty("/recipes");
     expect(paths).toHaveProperty("/recipes/{recipeId}");
     expect(paths).toHaveProperty("/rations");
+    expect(paths).toHaveProperty("/rations/preview");
+    expect(paths).toHaveProperty("/rations/{rationId}");
     expect(paths).toHaveProperty("/goals");
     expect(paths).toHaveProperty("/dashboard");
+    expect(paths).toHaveProperty("/me/timezone");
   });
 });
