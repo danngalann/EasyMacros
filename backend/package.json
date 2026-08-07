@@ -6,16 +6,21 @@
   "scripts": {
     "build": "tsc --noEmit",
     "dev": "tsx watch src/server.ts",
+    "migrate": "tsx src/migrate.ts",
     "start": "tsx src/server.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "fastify": "5.6.2"
+    "@fastify/swagger": "^9.8.1",
+    "@fastify/swagger-ui": "^5.2.6",
+    "fastify": "5.6.2",
+    "pg": "^8.22.0"
   },
   "devDependencies": {
     "@types/node": "24.10.1",
+    "@types/pg": "^8.20.4",
     "tsx": "4.20.6",
     "vitest": "4.0.8"
   }

@@ -1,12 +1,14 @@
 import { buildApp } from "./app.js";
+import { loadConfig } from "./config.js";
+import { createDatabase } from "./database.js";
 
-const app = buildApp();
-const port = Number.parseInt(process.env.PORT ?? "3000", 10);
-const host = process.env.HOST ?? "127.0.0.1";
+const config = loadConfig();
+const app = await buildApp({ database: createDatabase(config.databaseUrl) });
 
 try {
-  await app.listen({ host, port });
+  await app.listen({ host: config.host, port: config.port });
 } catch (error) {
   app.log.error(error);
+  await app.close();
   process.exitCode = 1;
 }
