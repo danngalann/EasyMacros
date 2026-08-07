@@ -42,7 +42,7 @@ openapi-check:
 	pnpm --filter backend exec vitest run -t 'OpenAPI'
 
 compose-prod-check:
-	@printf '%s\n' 'Production Compose begins in Phase 10.'
+	docker compose -f docker-compose.prod.yml config >/dev/null
 
 migrate:
 	pnpm --filter backend migrate
