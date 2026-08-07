@@ -37,6 +37,24 @@ make build
 `make test-android` runs JVM tests. The Phase 1 Android gate is
 `./android/gradlew lint test assembleDebug`.
 
+## Production artifact checks
+
+Build the compiled, non-root API image with:
+
+```sh
+docker build --tag easymacros-api:local .
+```
+
+Validate production Compose interpolation with synthetic local values only:
+
+```sh
+POSTGRES_DB=easymacros POSTGRES_USER=easymacros POSTGRES_PASSWORD=test-password \
+JWT_SECRET=ci-secret-that-is-at-least-thirty-two-bytes make compose-prod-check
+```
+
+See [deployment.md](deployment.md) for production startup, backup, restore, and upgrade
+procedures. Do not use `docker-compose.prod.yml` as a development substitute.
+
 ## Development database
 
 The development Compose file intentionally contains PostgreSQL only. Stop it with

@@ -27,3 +27,11 @@ logging, and goal replacement each run on a single PostgreSQL transaction. The s
 performs the calculation and snapshot work; Fastify routes only authenticate callers,
 obtain the stored timezone when logging rations, and map domain errors to API responses.
 Ration pagination is keyset-based on the history index ordering rather than offset-based.
+
+Phase 10 packages the backend in a multi-stage Node 24 image. TypeScript output and SQL
+migrations are built before runtime, then only production dependencies are copied into a
+non-root process image. Production Compose has one API process and one PostgreSQL process;
+the database network is internal and the API is locally bound for a separate TLS reverse
+proxy. Startup runs migrations before listening, and SIGINT/SIGTERM close Fastify and the
+PostgreSQL pool. The v1 API must remain a single replica because its temporary image-job
+volume is local rather than shared.

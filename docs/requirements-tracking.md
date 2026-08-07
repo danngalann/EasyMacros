@@ -84,3 +84,16 @@
 - [x] Coordinated dashboard, recipe, log, history, goals, and settings navigation
 - [x] Focused backend workflow/route and Android tracking ViewModel regression coverage
 - [ ] Local end-to-end, DST, over-goal, and Compose network-error coverage from the Phase 9 gate
+
+## Phase 10 checklist
+
+- [x] Multi-stage non-root backend image with compiled runtime, packaged migrations,
+      read-only filesystem, tmpfs, health probe, and graceful shutdown
+- [x] Production Compose API/PostgreSQL topology with a private database network,
+      persistent volumes, restart policies, resource guidance, and single-replica limit
+- [x] Production deployment, TLS/reverse-proxy, backup/restore, upgrade, secret rotation,
+      incident, log-retention, and AI-provider operating guidance
+- [x] CI backend, Android, migration, OpenAPI, dependency-audit, container-build, and
+      secret-scan gates
+- [ ] Restore drill, load/accessibility review, Android release journey, and documented
+      performance/AI-concurrency measurements require a production-like environment

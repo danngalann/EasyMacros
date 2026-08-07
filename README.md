@@ -39,6 +39,7 @@ Open the `android/` directory directly in Android Studio, or run
 - `android/`: independent Gradle/Compose Android project
 - `docs/`: current architecture, development, and operations documentation
 - `docker-compose.dev.yml`: development PostgreSQL only
+- `docker-compose.prod.yml`: API and private PostgreSQL production topology
 
 ## Quality commands
 
@@ -50,6 +51,7 @@ make build
 ```
 
 See [docs/development.md](docs/development.md) for the complete command reference.
+See [docs/deployment.md](docs/deployment.md) for production deployment and recovery.
 
 ## License
 
