@@ -49,6 +49,78 @@ data class DashboardResponse(
 data class NutrientAmountResponse(val code: String, val amount: String)
 data class GoalResponse(val effectiveLocalDate: String, val nutrients: List<NutrientAmountResponse>)
 
+interface TrackingApi {
+    @GET("rations")
+    suspend fun rations(
+        @Query("date") date: String? = null,
+        @Query("from") from: String? = null,
+        @Query("to") to: String? = null,
+        @Query("query") query: String? = null,
+        @Query("cursor") cursor: String? = null,
+    ): RationListResponse
+
+    @GET("rations/{rationId}")
+    suspend fun ration(@retrofit2.http.Path("rationId") rationId: String): RationDetailResponse
+
+    @POST("rations")
+    suspend fun createRation(@Body request: RationRequest): RationCreatedResponse
+
+    @POST("rations/preview")
+    suspend fun previewRation(@Body request: RationPreviewRequest): RationPreviewResponse
+
+    @DELETE("rations/{rationId}")
+    suspend fun deleteRation(@retrofit2.http.Path("rationId") rationId: String)
+
+    @PUT("goals")
+    suspend fun setGoal(@Body request: GoalRequest): GoalResponse
+
+    @PUT("me/timezone")
+    suspend fun updateTimezone(@Body request: TimezoneRequest): TimezoneResponse
+}
+
+data class RationRequest(
+    val recipeId: String,
+    val consumedGrams: String,
+    val consumedAt: String,
+    val note: String? = null,
+)
+data class RationCreatedResponse(
+    val id: String,
+    val consumedLocalDate: String,
+    val nutrients: List<NutrientAmountResponse>,
+    val calories: String,
+)
+data class RationPreviewRequest(val recipeId: String, val consumedGrams: String)
+data class RationPreviewResponse(
+    val recipeName: String,
+    val nutrients: List<NutrientAmountResponse>,
+    val calories: String,
+)
+data class RationListResponse(val rations: List<RationSummaryResponse>, val nextCursor: String?)
+data class RationSummaryResponse(
+    val id: String,
+    val recipeName: String,
+    val consumedGrams: String,
+    val consumedAt: String,
+    val consumedLocalDate: String,
+    val note: String?,
+)
+data class RationDetailResponse(
+    val id: String,
+    val recipeName: String,
+    val recipeYieldGrams: String,
+    val consumedGrams: String,
+    val consumedAt: String,
+    val consumedLocalDate: String,
+    val timezone: String,
+    val note: String?,
+    val nutrients: List<NutrientAmountResponse>,
+    val calories: String,
+)
+data class GoalRequest(val effectiveLocalDate: String, val nutrients: List<NutrientAmountResponse>)
+data class TimezoneRequest(val timezone: String)
+data class TimezoneResponse(val timezone: String)
+
 interface RecipeApi {
     @GET("recipes")
     suspend fun recipes(@Query("query") query: String): RecipeListResponse

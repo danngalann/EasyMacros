@@ -7,6 +7,7 @@ import com.danngalann.easymacros.data.api.DashboardApi
 import com.danngalann.easymacros.data.api.IngredientApi
 import com.danngalann.easymacros.data.api.RefreshAuthenticator
 import com.danngalann.easymacros.data.api.RecipeApi
+import com.danngalann.easymacros.data.api.TrackingApi
 import com.danngalann.easymacros.data.repository.AuthRepository
 import com.danngalann.easymacros.data.repository.DashboardRepository
 import com.danngalann.easymacros.data.repository.DefaultAuthRepository
@@ -15,6 +16,8 @@ import com.danngalann.easymacros.data.repository.EncryptedSessionStore
 import com.danngalann.easymacros.data.repository.DefaultRecipeRepository
 import com.danngalann.easymacros.data.repository.RecipeRepository
 import com.danngalann.easymacros.data.repository.SessionStore
+import com.danngalann.easymacros.data.repository.DefaultTrackingRepository
+import com.danngalann.easymacros.data.repository.TrackingRepository
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -33,6 +36,7 @@ abstract class RepositoryModule {
     @Binds abstract fun bindAuthRepository(repository: DefaultAuthRepository): AuthRepository
     @Binds abstract fun bindDashboardRepository(repository: DefaultDashboardRepository): DashboardRepository
     @Binds abstract fun bindRecipeRepository(repository: DefaultRecipeRepository): RecipeRepository
+    @Binds abstract fun bindTrackingRepository(repository: DefaultTrackingRepository): TrackingRepository
 }
 
 @Module
@@ -73,6 +77,11 @@ object NetworkModule {
         interceptor: AuthHeaderInterceptor,
         authenticator: RefreshAuthenticator,
     ): IngredientApi = protectedRetrofit(interceptor, authenticator).create(IngredientApi::class.java)
+
+    @Provides @Singleton fun provideTrackingApi(
+        interceptor: AuthHeaderInterceptor,
+        authenticator: RefreshAuthenticator,
+    ): TrackingApi = protectedRetrofit(interceptor, authenticator).create(TrackingApi::class.java)
 
     private fun protectedRetrofit(
         interceptor: AuthHeaderInterceptor,

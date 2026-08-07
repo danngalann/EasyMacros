@@ -50,7 +50,7 @@ private fun AuthenticatedShell(onLogout: () -> Unit) {
     if (showRecipes) {
         RecipesScreen(onBack = { showRecipes = false })
     } else {
-        DashboardScreen(onLogout = onLogout, onRecipes = { showRecipes = true })
+        TrackingScreen(onLogout = onLogout, onRecipes = { showRecipes = true })
     }
 }
 
