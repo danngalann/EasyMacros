@@ -26,6 +26,7 @@ describe("health endpoint", () => {
       close: () => Promise.resolve(),
       isReady: () => Promise.resolve(true),
       query: () => Promise.resolve({ rows: [] }),
+      transaction: (callback) => callback(database),
     };
     const app = await buildApp({ database });
     apps.add(app);
@@ -41,6 +42,7 @@ describe("health endpoint", () => {
       close: () => Promise.resolve(),
       isReady: () => Promise.resolve(false),
       query: () => Promise.resolve({ rows: [] }),
+      transaction: (callback) => callback(database),
     };
     const app = await buildApp({ database });
     apps.add(app);
