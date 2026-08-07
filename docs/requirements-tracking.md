@@ -15,7 +15,14 @@
       Android, and ADR documentation
 - [x] Open-source license, contribution, conduct, and security-reporting guidance
 
+## Phase 2 checklist
+
+- [x] Typed runtime configuration with required database URL validation
+- [x] PostgreSQL connection pool and database readiness endpoint
+- [x] Transactional, tracked SQL migration runner and initial users schema
+- [x] Versioned readiness endpoint with OpenAPI documentation and response schemas
+
 ## Deferred requirements
 
-Application configuration, database migrations, readiness, OpenAPI, authentication, and
-all nutrient/product behavior are explicitly deferred to their documented later phases.
+Authentication and all nutrient/product behavior are explicitly deferred to their
+documented later phases.

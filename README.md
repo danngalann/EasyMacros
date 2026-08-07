@@ -3,9 +3,9 @@
 > Living document: update this file in the same change whenever the described
 > behavior, contract, command, configuration, or architecture changes.
 
-EasyMacros is an open-source, self-hostable nutrient tracker. It will pair a native
-Android application with a TypeScript API and PostgreSQL. Phase 1 provides development
-scaffolding only; product features are not implemented yet.
+EasyMacros is an open-source, self-hostable nutrient tracker. It pairs a native Android
+application with a TypeScript API and PostgreSQL. Phase 2 provides the backend
+foundation; product features are not implemented yet.
 
 ## Prerequisites
 
@@ -20,11 +20,14 @@ scaffolding only; product features are not implemented yet.
 pnpm install --frozen-lockfile
 cp .env.example .env
 make dev-db-up
+make migrate
 make test
 ```
 
 Run the backend locally with `make backend-dev`. It listens on
-`http://127.0.0.1:3000`; `GET /health/live` returns `{"status":"ok"}`.
+`http://127.0.0.1:3000`; `GET /health/live` reports process liveness and
+`GET /v1/health/ready` reports PostgreSQL readiness. OpenAPI documentation is available
+at `http://127.0.0.1:3000/docs`.
 
 Open the `android/` directory directly in Android Studio, or run
 `./android/gradlew lint test assembleDebug` from the repository root.

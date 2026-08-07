@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help setup dev-db-up dev-db-down backend-dev format format-check lint test test-backend test-android build openapi-check compose-prod-check migrate migration-new
+.PHONY: help setup dev-db-up dev-db-down backend-dev format format-check lint test test-backend test-android build openapi-check compose-prod-check migrate
 
 help:
 	@printf '%s\n' 'Targets: setup dev-db-up dev-db-down backend-dev format format-check lint test test-backend test-android build openapi-check compose-prod-check'
@@ -39,13 +39,10 @@ build:
 	./android/gradlew assembleDebug
 
 openapi-check:
-	@printf '%s\n' 'OpenAPI generation begins in Phase 2.'
+	pnpm --filter backend exec vitest run -t 'OpenAPI'
 
 compose-prod-check:
 	@printf '%s\n' 'Production Compose begins in Phase 10.'
 
 migrate:
-	@printf '%s\n' 'Database migrations begin in Phase 2.'
-
-migration-new:
-	@printf '%s\n' 'Database migrations begin in Phase 2.'
+	pnpm --filter backend migrate

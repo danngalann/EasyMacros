@@ -9,6 +9,7 @@
 pnpm install --frozen-lockfile
 cp .env.example .env
 make dev-db-up
+make migrate
 ```
 
 Wait for the database health check with:
@@ -40,4 +41,5 @@ make build
 
 The development Compose file intentionally contains PostgreSQL only. Stop it with
 `make dev-db-down`. Removing the named volume is destructive and must be an explicit
-operator action; no reset target exists yet.
+operator action; no reset target exists yet. Apply outstanding SQL migrations with
+`make migrate`; applied migration names are recorded in `schema_migrations`.
