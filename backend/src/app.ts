@@ -6,6 +6,7 @@ import swaggerUi from "@fastify/swagger-ui";
 import { AuthError, AuthService } from "./auth.js";
 import type { AppConfig } from "./config.js";
 import type { Database } from "./database.js";
+import { IngredientError, IngredientService } from "./ingredients.js";
 
 export interface BuildAppOptions {
   config?: AppConfig;
@@ -15,6 +16,7 @@ export interface BuildAppOptions {
 export async function buildApp({ config, database }: BuildAppOptions = {}) {
   const app = Fastify({ logger: false, trustProxy: config?.trustedProxyHops || false });
   const auth = config && database ? new AuthService(database, config) : undefined;
+  const ingredients = database ? new IngredientService(database) : undefined;
 
   await app.register(rateLimit, { global: false });
 
@@ -94,6 +96,13 @@ export async function buildApp({ config, database }: BuildAppOptions = {}) {
       throw new Error("Authentication requires database and config");
     }
     return auth;
+  }
+
+  function requireIngredientService(): IngredientService {
+    if (!ingredients) {
+      throw new Error("Nutrition requires database");
+    }
+    return ingredients;
   }
 
   function clientIp(request: { ip: string }): string {
@@ -199,6 +208,85 @@ export async function buildApp({ config, database }: BuildAppOptions = {}) {
     return requireAuthService().currentUser(identity.userId);
   });
 
+  app.get("/nutrients", { schema: { tags: ["nutrition"] } }, async (request) => {
+    await requireIdentity(request);
+    return { nutrients: await requireIngredientService().listNutrients() };
+  });
+
+  app.get<{ Querystring: { hidden?: string; query?: string } }>(
+    "/ingredients",
+    { schema: { tags: ["ingredients"] } },
+    async (request) => {
+      const identity = await requireIdentity(request);
+      return {
+        ingredients: await requireIngredientService().list(
+          identity.userId,
+          request.query.query,
+          request.query.hidden === "true",
+        ),
+      };
+    },
+  );
+
+  app.get<{ Params: { ingredientId: string } }>(
+    "/ingredients/:ingredientId",
+    { schema: { tags: ["ingredients"] } },
+    async (request, reply) => {
+      const identity = await requireIdentity(request);
+      const ingredient = await requireIngredientService().detail(
+        identity.userId,
+        request.params.ingredientId,
+      );
+      return ingredient ?? reply.code(404).send({ code: "ingredient_not_found" });
+    },
+  );
+
+  app.post<{
+    Body: { brand?: string; name: string; nutrients: Array<{ amount: string; code: string }> };
+  }>("/ingredients/manual-candidates", { schema: { tags: ["ingredients"] } }, async (request) => {
+    const identity = await requireIdentity(request);
+    return requireIngredientService().createManualCandidate(identity.userId, request.body);
+  });
+
+  app.post<{ Body: { version: string }; Params: { candidateId: string } }>(
+    "/ingredient-candidates/:candidateId/confirm",
+    { schema: { tags: ["ingredients"] } },
+    async (request) => {
+      const identity = await requireIdentity(request);
+      return requireIngredientService().confirmCandidate(
+        identity.userId,
+        request.params.candidateId,
+        request.body.version,
+      );
+    },
+  );
+
+  app.patch<{ Body: { brand?: string; name?: string }; Params: { ingredientId: string } }>(
+    "/ingredients/:ingredientId",
+    { schema: { tags: ["ingredients"] } },
+    async (request) => {
+      const identity = await requireIdentity(request);
+      return requireIngredientService().update(
+        identity.userId,
+        request.params.ingredientId,
+        request.body,
+      );
+    },
+  );
+
+  app.patch<{ Body: { hidden: boolean }; Params: { ingredientId: string } }>(
+    "/ingredients/:ingredientId/visibility",
+    { schema: { tags: ["ingredients"] } },
+    async (request) => {
+      const identity = await requireIdentity(request);
+      return requireIngredientService().setVisibility(
+        identity.userId,
+        request.params.ingredientId,
+        request.body.hidden,
+      );
+    },
+  );
+
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof AuthError) {
       if (error.retryAfterSeconds) {
@@ -207,6 +295,9 @@ export async function buildApp({ config, database }: BuildAppOptions = {}) {
       return reply
         .code(error.statusCode)
         .send({ code: error.code, message: "Authentication request could not be completed" });
+    }
+    if (error instanceof IngredientError) {
+      return reply.code(error.statusCode).send({ code: error.code });
     }
     return reply.send(error);
   });
