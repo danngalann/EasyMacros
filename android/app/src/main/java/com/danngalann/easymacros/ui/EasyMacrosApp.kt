@@ -37,7 +37,7 @@ fun EasyMacrosApp(authViewModel: AuthViewModel = hiltViewModel()) {
         Surface(modifier = Modifier.fillMaxSize()) {
             when {
                 state.isRestoring -> Text("Restoring session", modifier = Modifier.padding(24.dp))
-                state.isAuthenticated -> DashboardScreen(onLogout = authViewModel::logout)
+                state.isAuthenticated -> AuthenticatedShell(onLogout = authViewModel::logout)
                 else -> AuthScreen(state, authViewModel::login, authViewModel::register)
             }
         }
@@ -45,8 +45,19 @@ fun EasyMacrosApp(authViewModel: AuthViewModel = hiltViewModel()) {
 }
 
 @Composable
+private fun AuthenticatedShell(onLogout: () -> Unit) {
+    var showRecipes by rememberSaveable { mutableStateOf(false) }
+    if (showRecipes) {
+        RecipesScreen(onBack = { showRecipes = false })
+    } else {
+        DashboardScreen(onLogout = onLogout, onRecipes = { showRecipes = true })
+    }
+}
+
+@Composable
 private fun DashboardScreen(
     onLogout: () -> Unit,
+    onRecipes: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -56,7 +67,10 @@ private fun DashboardScreen(
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Daily nutrition", style = MaterialTheme.typography.headlineMedium)
-            TextButton(onClick = onLogout) { Text("Log out") }
+            Row {
+                TextButton(onClick = onRecipes) { Text("Recipes") }
+                TextButton(onClick = onLogout) { Text("Log out") }
+            }
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             IconButton(onClick = viewModel::previousDay, enabled = !state.isLoading) {
