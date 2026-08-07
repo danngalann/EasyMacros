@@ -22,6 +22,17 @@
 - [x] Transactional, tracked SQL migration runner and initial users schema
 - [x] Versioned readiness endpoint with OpenAPI documentation and response schemas
 
+## Phase 3 checklist
+
+- [x] Username/password users, sessions, refresh families, and durable login attempts
+- [x] Argon2id password hashing, signed JWT access tokens, rotating opaque refresh tokens,
+      bounded lost-response recovery, family revocation, and session listing/revocation
+- [x] Registration switch, username normalization, password policy, operator user bootstrap,
+      and password-change session revocation
+- [x] Username/IP-pair exponential login backoff with `Retry-After` and documented
+      IP-rotation tradeoff
+- [x] Authentication API contract, environment configuration, and secret rotation guidance
+
 ## Deferred requirements
 
 Authentication and all nutrient/product behavior are explicitly deferred to their
