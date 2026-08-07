@@ -12,5 +12,21 @@ compiler plugin. `MainActivity` is the single activity and calls `setContent` to
 the Compose UI tree. `MaterialTheme` provides Compose styling; the XML theme supplies
 window-level activity resources.
 
-There are no repositories, ViewModels, navigation graphs, or API DTOs yet. They will be
-introduced with the Android foundation in Phase 6.
+Phase 6 establishes a feature-oriented Android foundation. Hilt owns application-wide
+dependencies. `data/api` contains Retrofit wire DTOs and endpoints, while
+`data/repository` maps API outcomes to app behavior and owns authentication session
+replacement. `ui/AuthViewModel` exposes immutable `StateFlow<AuthUiState>` to the
+Compose root, which selects the authentication or authenticated shell.
+
+The session store encrypts one serialized session with an AES-GCM key generated in the
+Android Keystore, then persists only ciphertext in Preferences DataStore. On process
+restart, the ViewModel asks the repository to restore that session; an expired access
+token is refreshed before the main shell is shown. Refresh requests are protected by a
+coroutine `Mutex`, so concurrent callers do not rotate the opaque server token twice.
+An OkHttp interceptor adds the access token to protected calls. Its authenticator performs
+at most one refresh-and-retry after a `401`, using a separate unauthenticated Retrofit
+client so the refresh request cannot recurse through the authenticator.
+
+The API base URL is a `BuildConfig` value. Debug builds use the Android emulator host
+address `http://10.0.2.2:3000/`; release builds must provide a TLS endpoint before
+distribution. Network bodies and bearer tokens are never logged.

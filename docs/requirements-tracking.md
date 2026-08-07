@@ -51,3 +51,10 @@
 - [x] Atomic ration snapshots with user-timezone local dates and deterministic cursor pagination
 - [x] Effective-dated goal profiles and authoritative daily dashboard totals/calories
 - [x] Published authenticated API contracts and focused workflow route regression coverage
+
+## Phase 6 checklist
+
+- [x] Android Hilt, Retrofit, DataStore, encrypted Keystore session, and repository foundation
+- [x] Login/register and authenticated app-shell selection with loading and preserved errors
+- [x] Process-restart session restoration and single-flight refresh coordination
+- [x] Focused ViewModel authentication regression tests
