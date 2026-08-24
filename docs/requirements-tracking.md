@@ -70,6 +70,8 @@
 - [x] Authenticated Android recipe search, detail, composition, and nutrient-total displays
 - [x] Recipe editor with owner-scoped ingredient search, optional hidden ingredients, validation,
       server-authoritative preview, immutable version updates, and duplicate-submit prevention
+- [x] Reviewed manual ingredient candidate creation and confirmation from the Android recipe editor
+- [x] Searchable Android ingredient catalog with repeated standalone creation and recipe access
 - [x] Recipe deletion confirmation explaining active-recipe removal and retained ration snapshots
 - [x] Focused recipe ViewModel regression tests and protected backend preview workflow coverage
 
@@ -82,6 +84,8 @@
 - [x] Owner-scoped ration history search/date filters, keyset paging, immutable detail, and
       delete-then-re-log correction flow
 - [x] Coordinated dashboard, recipe, log, history, goals, and settings navigation
+- [x] Dark-first Material 3 shell, locale-formatted dates, guided forms, and distinct
+      loading, empty, retry, and content states across authenticated Android workflows
 - [x] Focused backend workflow/route and Android tracking ViewModel regression coverage
 - [ ] Local end-to-end, DST, over-goal, and Compose network-error coverage from the Phase 9 gate
 

@@ -4,9 +4,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -19,14 +22,20 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.RestaurantMenu
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -34,24 +43,22 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @Composable
 fun EasyMacrosApp(authViewModel: AuthViewModel = hiltViewModel()) {
     val state by authViewModel.state.collectAsStateWithLifecycle()
-    MaterialTheme {
+    EasyMacrosTheme {
         Surface(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
             when {
-                state.isRestoring -> Text("Restoring session", modifier = Modifier.padding(24.dp))
-                state.isAuthenticated -> AuthenticatedShell(onLogout = authViewModel::logout)
+                state.isRestoring -> Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    CircularProgressIndicator()
+                    Spacer(Modifier.height(16.dp))
+                    Text("Getting things ready", style = MaterialTheme.typography.titleMedium)
+                }
+                state.isAuthenticated -> AuthenticatedApp(onLogout = authViewModel::logout)
                 else -> AuthScreen(state, authViewModel::login, authViewModel::register)
             }
         }
-    }
-}
-
-@Composable
-private fun AuthenticatedShell(onLogout: () -> Unit) {
-    var showRecipes by rememberSaveable { mutableStateOf(false) }
-    if (showRecipes) {
-        RecipesScreen(onBack = { showRecipes = false })
-    } else {
-        TrackingScreen(onLogout = onLogout, onRecipes = { showRecipes = true })
     }
 }
 
@@ -116,14 +123,58 @@ private fun AuthScreen(state: AuthUiState, onLogin: (String, String) -> Unit, on
     var password by rememberSaveable { mutableStateOf("") }
     var register by rememberSaveable { mutableStateOf(false) }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
-    Column(modifier = Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(if (register) "Create account" else "Sign in", style = MaterialTheme.typography.headlineMedium)
-        OutlinedTextField(username, { username = it }, label = { Text("Username") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !state.isLoading)
-        OutlinedTextField(password, { password = it }, label = { Text("Password") }, singleLine = true, visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth(), enabled = !state.isLoading)
-        TextButton(onClick = { passwordVisible = !passwordVisible }, enabled = !state.isLoading) { Text(if (passwordVisible) "Hide password" else "Show password") }
-        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Button(onClick = { if (register) onRegister(username, password) else onLogin(username, password) }, enabled = username.isNotBlank() && password.isNotBlank() && !state.isLoading, modifier = Modifier.fillMaxWidth()) { Text(if (state.isLoading) "Working" else if (register) "Register" else "Sign in") }
-        TextButton(onClick = { register = !register }, enabled = !state.isLoading) { Text(if (register) "Already have an account? Sign in" else "Create an account") }
+    Column(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Column(modifier = Modifier.widthIn(max = 480.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Icon(Icons.Default.RestaurantMenu, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Text("EasyMacros", style = MaterialTheme.typography.displaySmall)
+            Text(
+                if (register) "Create your private nutrition workspace."
+                else "Log recipes, track daily macros, and understand what remains.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(if (register) "Create account" else "Welcome back", style = MaterialTheme.typography.titleLarge)
+            OutlinedTextField(
+                value = username,
+                onValueChange = { username = it },
+                label = { Text("Username") },
+                supportingText = { Text("3–64 letters, numbers, dots, hyphens, or underscores") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.isLoading,
+            )
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = { Text("Password") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = { passwordVisible = !passwordVisible }, enabled = !state.isLoading) {
+                        Icon(
+                            if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.isLoading,
+            )
+            state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            Button(
+                onClick = { if (register) onRegister(username, password) else onLogin(username, password) },
+                enabled = username.isNotBlank() && password.isNotBlank() && !state.isLoading,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text(if (state.isLoading) "Working…" else if (register) "Create account" else "Sign in") }
+            TextButton(onClick = { register = !register }, enabled = !state.isLoading, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+                Text(if (register) "Already have an account? Sign in" else "New to EasyMacros? Create an account")
+            }
+        }
     }
 }
 

@@ -30,6 +30,16 @@ remains bound only to `127.0.0.1`. Stop the API when LAN access is no longer nee
 The Android debug manifest permits cleartext HTTP solely for this local-device workflow;
 release builds require an HTTPS API endpoint.
 
+Android debug failures use the `EasyMacrosNetwork` Logcat tag. Entries contain only the
+method, host, path, and, for HTTP failures, status code. If Android Studio Live Edit
+crashes in `com.android.tools.deploy.liveedit` with `NoSuchFieldException: receiver`,
+disable Live Edit and replace the incrementally patched app with a clean install:
+
+```sh
+cd android
+./gradlew clean :app:installDebug
+```
+
 ## Validation
 
 ```sh
@@ -67,6 +77,18 @@ The development Compose file intentionally contains PostgreSQL only. Stop it wit
 `make dev-db-down`. Removing the named volume is destructive and must be an explicit
 operator action; no reset target exists yet. Apply outstanding SQL migrations with
 `make migrate`; applied migration names are recorded in `schema_migrations`.
+
+The bare-metal backend still uses PostgreSQL from `docker-compose.dev.yml` through its
+loopback port. A healthy container does not imply a current schema. If `/recipes`,
+`/ingredients`, and `/rations` all fail together, apply migrations and verify readiness:
+
+```sh
+make migrate
+curl --fail http://127.0.0.1:3000/v1/health/ready
+```
+
+Readiness returns `503` when PostgreSQL is unreachable or the latest tracked migration
+has not been applied.
 
 ## Authentication bootstrap
 

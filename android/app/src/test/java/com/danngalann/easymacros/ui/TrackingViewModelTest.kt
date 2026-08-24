@@ -3,6 +3,7 @@ package com.danngalann.easymacros.ui
 import com.danngalann.easymacros.data.repository.DailyDashboard
 import com.danngalann.easymacros.data.repository.DashboardRepository
 import com.danngalann.easymacros.data.repository.Goal
+import com.danngalann.easymacros.data.repository.IngredientDraft
 import com.danngalann.easymacros.data.repository.NutrientAmount
 import com.danngalann.easymacros.data.repository.RationDetail
 import com.danngalann.easymacros.data.repository.RationPage
@@ -57,6 +58,17 @@ class TrackingViewModelTest {
         assertNotNull(viewModel.state.value.rationDraft?.preview)
         assertEquals("84.000000", viewModel.state.value.rationDraft?.preview?.calories)
     }
+
+    @Test fun `timezone draft updates without making a request`() = runTest {
+        val tracking = FakeTrackingRepository()
+        val viewModel = TrackingViewModel(TrackingFakeDashboardRepository(), TrackingFakeRecipeRepository(), tracking)
+        runCurrent()
+
+        viewModel.updateTimezoneDraft("Europe/Berlin")
+
+        assertEquals("Europe/Berlin", viewModel.state.value.timezone)
+        assertEquals(0, tracking.timezoneUpdates)
+    }
 }
 
 private class TrackingFakeDashboardRepository : DashboardRepository {
@@ -69,6 +81,7 @@ private class TrackingFakeRecipeRepository : RecipeRepository {
     override suspend fun recipes(query: String) = Result.success(listOf(RecipeSummary("recipe-1", "Breakfast", "300", 1)))
     override suspend fun recipe(recipeId: String) = error("not used")
     override suspend fun ingredients(query: String, hidden: Boolean) = error("not used")
+    override suspend fun createIngredient(draft: IngredientDraft) = error("not used")
     override suspend fun preview(draft: com.danngalann.easymacros.data.repository.RecipeDraft) = error("not used")
     override suspend fun save(recipeId: String?, draft: com.danngalann.easymacros.data.repository.RecipeDraft) = error("not used")
     override suspend fun delete(recipeId: String) = error("not used")
@@ -76,6 +89,7 @@ private class TrackingFakeRecipeRepository : RecipeRepository {
 
 private class FakeTrackingRepository : TrackingRepository {
     val requestedDates = mutableListOf<String?>()
+    var timezoneUpdates = 0
 
     override suspend fun rations(date: String?, from: String?, to: String?, query: String?, cursor: String?): Result<RationPage> {
         requestedDates += date
@@ -87,5 +101,8 @@ private class FakeTrackingRepository : TrackingRepository {
     override suspend fun logRation(recipeId: String, grams: String, consumedAt: String, note: String) = Result.success(Unit)
     override suspend fun deleteRation(rationId: String) = Result.success(Unit)
     override suspend fun setGoal(effectiveDate: String, nutrients: List<NutrientAmount>) = Result.success(Goal(effectiveDate, nutrients))
-    override suspend fun updateTimezone(timezone: String) = Result.success(timezone)
+    override suspend fun updateTimezone(timezone: String): Result<String> {
+        timezoneUpdates += 1
+        return Result.success(timezone)
+    }
 }

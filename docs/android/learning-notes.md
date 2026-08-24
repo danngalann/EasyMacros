@@ -48,6 +48,13 @@ does not relax the release network-security policy; a distributed build still re
 HTTPS. The merged debug manifest is a useful troubleshooting check when Logcat reports
 that cleartext communication is not permitted.
 
+`android.permission.INTERNET` is a normal manifest permission, so Android grants it when
+the app is installed and does not show a runtime prompt. Without it, socket creation can
+fail with `EPERM` before OkHttp reaches the network. `PasswordVisualTransformation` only
+masks displayed characters; `KeyboardOptions(keyboardType = KeyboardType.Password)` sets
+the platform input type, which prevents ordinary keyboard suggestions and lets password
+managers recognize the field.
+
 DataStore provides asynchronous persistence but not encryption. The session store
 encrypts its plaintext with an AES-GCM key held by Android Keystore before writing it to
 DataStore. This permits process-death restoration without putting bearer or refresh
@@ -100,12 +107,41 @@ server validations rejected the draft, while `404` during an update means the ac
 recipe was deleted and should be reopened from search.
 
 `RecipesViewModelTest` proves list loading, local validation, deliberate hidden-ingredient
-inclusion, server-preview display, and duplicate-save prevention. Run it with:
+inclusion, server-preview display, duplicate-save prevention, operation-specific errors,
+and reviewed ingredient creation. The ingredient form is another immutable nullable
+state branch: opening it supplies a value, edits use `copy`, confirmation launches a
+`suspend` repository workflow in `viewModelScope`, and success clears the branch while
+adding the returned ingredient to the recipe. Run it with:
 
 ```sh
 cd android
 ./gradlew testDebugUnitTest --tests 'com.danngalann.easymacros.ui.RecipesViewModelTest'
 ```
+
+`IngredientsViewModel` applies the same immutable form and coroutine pattern outside a
+recipe draft. It reloads the owner-scoped catalog after each confirmation, enabling a
+bulk-entry workflow without changing authoritative nutrient or ration semantics.
+`IngredientsViewModelTest` proves reviewed creation and post-create refresh:
+
+```sh
+cd android
+./gradlew testDebugUnitTest --tests 'com.danngalann.easymacros.ui.IngredientsViewModelTest'
+```
+
+Android Studio Live Edit rewrites composable click lambdas in a running process. A crash
+whose stack begins in `com.android.tools.deploy.liveedit` with
+`NoSuchFieldException: receiver` indicates stale injected bytecode rather than an app or
+Retrofit exception. Disable Live Edit for the session and install clean bytecode:
+
+```sh
+cd android
+./gradlew clean :app:installDebug
+```
+
+For API failures, filter Logcat by `EasyMacrosNetwork`. Debug builds record sanitized
+transport exceptions and non-success HTTP status codes; release builds install neither
+transport logger. The absence of a backend request alongside an Android transport error
+usually means the configured host is unreachable from the device.
 
 ## Phase 9: Tracking state, time, and history
 
@@ -135,4 +171,38 @@ and that logging uses a returned server preview. Run it with:
 ```sh
 cd android
 ./gradlew testDebugUnitTest --tests 'com.danngalann.easymacros.ui.TrackingViewModelTest'
+```
+
+## Modern app shell and guided states
+
+`AuthenticatedApp` hoists primary navigation above individual screens. A saved Compose
+destination selects the visible workspace, while `TrackingViewModel` remains the owner
+of tracking state and events. Selecting Today, History, Goals, or Settings sends a
+navigation event to that ViewModel; Recipes has its own Hilt `RecipesViewModel`. The
+prominent Today action opens the ration draft without creating a second source of truth.
+
+Compose recomposes the selected content whenever either navigation state or a collected
+`StateFlow` changes. ViewModels survive configuration changes, so dates, recipe drafts,
+history filters, and submission state remain intact across rotation. They are not saved
+for process death; after process recreation the encrypted authentication session is
+restored, then the authenticated workspaces reload their server state.
+
+Visible dates use localized `DateTimeFormatter` instances and a Material date picker.
+The picker converts its UTC epoch-day value back to `LocalDate`, while repositories still
+send ISO-8601 dates and instants. This is a presentation mapping, not a change to backend
+timezone semantics. A useful debugging check is to inspect the ISO request value and the
+stored user timezone when a ration appears on an unexpected day; changing the phone's
+locale should only change its label.
+
+Loading, failure, empty, and content branches are intentionally exclusive. A successful
+empty response explains the next useful action, while a failed request offers retry and
+does not also claim that no data exists. Recipe failures are mapped by operation, so a
+list request can no longer display save-specific copy. The focused ViewModel tests prove
+that distinction and that editing the timezone field does not issue a network request:
+
+```sh
+cd android
+./gradlew :app:testDebugUnitTest \
+	--tests 'com.danngalann.easymacros.ui.RecipesViewModelTest' \
+	--tests 'com.danngalann.easymacros.ui.TrackingViewModelTest'
 ```

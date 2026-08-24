@@ -1,5 +1,6 @@
 package com.danngalann.easymacros.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,183 +12,275 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.danngalann.easymacros.data.repository.DailyDashboard
-import com.danngalann.easymacros.data.repository.NutrientAmount
 import com.danngalann.easymacros.data.repository.RationDetail
 import com.danngalann.easymacros.data.repository.RationSummary
 import java.math.BigDecimal
+import java.math.RoundingMode
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
 @Composable
 fun TrackingScreen(
-    onLogout: () -> Unit,
     onRecipes: () -> Unit,
-    viewModel: TrackingViewModel = hiltViewModel(),
+    viewModel: TrackingViewModel,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(ScreenPadding),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("EasyMacros", style = MaterialTheme.typography.headlineMedium)
-            TextButton(onClick = onLogout) { Text("Log out") }
-        }
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton(onClick = { viewModel.navigate(TrackingDestination.Dashboard) }) { Text("Today") }
-            TextButton(onClick = viewModel::openLog) { Text("Log") }
-            TextButton(onClick = { viewModel.navigate(TrackingDestination.Goals) }) { Text("Goals") }
-            TextButton(onClick = { viewModel.navigate(TrackingDestination.History) }) { Text("History") }
-            TextButton(onClick = onRecipes) { Text("Recipes") }
-            TextButton(onClick = { viewModel.navigate(TrackingDestination.Settings) }) { Text("Settings") }
-        }
         when (state.destination) {
-            TrackingDestination.Dashboard -> DashboardTrackingContent(state, viewModel)
-            TrackingDestination.Log -> LogRationContent(state, viewModel)
-            TrackingDestination.Goals -> GoalEditorContent(state, viewModel)
-            TrackingDestination.History -> HistoryContent(state, viewModel)
-            TrackingDestination.Settings -> TimezoneContent(state, viewModel)
+            TrackingDestination.Dashboard -> Dashboard(state, viewModel, onRecipes)
+            TrackingDestination.Log -> LogRation(state, viewModel, onRecipes)
+            TrackingDestination.Goals -> Goals(state, viewModel)
+            TrackingDestination.History -> History(state, viewModel)
+            TrackingDestination.Settings -> Settings(state, viewModel)
         }
     }
     state.detail?.let { detail -> RationDetailDialog(detail, viewModel::closeRationDetail, viewModel::requestDelete) }
-    state.pendingDelete?.let { ration ->
+    state.pendingDelete?.let {
         AlertDialog(
             onDismissRequest = viewModel::dismissDelete,
-            title = { Text("Delete ration?") },
-            text = { Text("This removes the logged snapshot from totals and history. To correct it, log a new ration after deletion.") },
-            confirmButton = { Button(onClick = viewModel::deleteRation) { Text("Delete") } },
-            dismissButton = { TextButton(onClick = viewModel::dismissDelete) { Text("Keep") } },
+            title = { Text("Delete this ration?") },
+            text = { Text("It will be removed from totals and history. Corrections are made by logging a new ration.") },
+            confirmButton = { Button(onClick = viewModel::deleteRation) { Text("Delete ration") } },
+            dismissButton = { TextButton(onClick = viewModel::dismissDelete) { Text("Keep it") } },
         )
     }
 }
 
 @Composable
-private fun DashboardTrackingContent(state: TrackingUiState, viewModel: TrackingViewModel) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        IconButton(onClick = viewModel::previousDay, enabled = !state.isLoadingDashboard) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous day")
-        }
-        Text(state.date.toString(), style = MaterialTheme.typography.titleLarge)
-        IconButton(onClick = viewModel::nextDay, enabled = !state.isLoadingDashboard) {
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next day")
+private fun Dashboard(state: TrackingUiState, viewModel: TrackingViewModel, onRecipes: () -> Unit) {
+    ScreenIntro("Today", "See what you’ve logged and what remains for the day.")
+    SectionCard {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = viewModel::previousDay, enabled = !state.isLoadingDashboard) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous day")
+            }
+            Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(state.date.localized(), style = MaterialTheme.typography.titleMedium)
+                if (state.date == LocalDate.now()) Text("Today", color = MaterialTheme.colorScheme.primary)
+            }
+            IconButton(onClick = viewModel::nextDay, enabled = !state.isLoadingDashboard) {
+                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next day")
+            }
         }
     }
     when {
-        state.isLoadingDashboard -> CircularProgressIndicator()
-        state.dashboardError != null -> {
-            Text(state.dashboardError, color = MaterialTheme.colorScheme.error)
-            Button(onClick = viewModel::refreshDashboard) { Text("Try again") }
+        state.isLoadingDashboard && state.dashboard == null -> CircularProgressIndicator()
+        state.dashboardError != null -> ErrorState(state.dashboardError, viewModel::refreshDashboard)
+        state.dashboard != null -> {
+            if (state.isLoadingDashboard) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            DashboardTotals(state.dashboard)
+            if (state.dashboard.goal == null) {
+                EmptyState(
+                    title = "Set your daily targets",
+                    helper = "Goals turn today’s totals into simple progress you can act on.",
+                    actionLabel = "Set goals",
+                    onAction = { viewModel.navigate(TrackingDestination.Goals) },
+                    icon = Icons.Default.CheckCircle,
+                )
+            }
+            Text("Rations", style = MaterialTheme.typography.titleLarge)
+            Text("Everything logged for this day appears here.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (state.dayRations.isEmpty()) {
+                EmptyState(
+                    title = "Nothing logged yet",
+                    helper = "Create a recipe first, then log the amount you ate.",
+                    actionLabel = "Browse recipes",
+                    onAction = onRecipes,
+                    icon = Icons.Default.Restaurant,
+                )
+            } else {
+                state.dayRations.forEach { ration -> RationRow(ration) { viewModel.openRation(ration.id) } }
+            }
         }
-        state.dashboard != null -> DashboardTotals(state.dashboard)
     }
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Button(onClick = viewModel::refreshDashboard) { Text("Refresh") }
-        Button(onClick = viewModel::openLog) { Text("Log ration") }
-    }
-    Text("Rations", style = MaterialTheme.typography.titleMedium)
-    if (state.dayRations.isEmpty() && !state.isLoadingDashboard) Text("No rations recorded for this day.")
-    state.dayRations.forEach { ration -> RationRow(ration, { viewModel.openRation(ration.id) }) }
 }
 
 @Composable
 private fun DashboardTotals(dashboard: DailyDashboard) {
-    val consumed = dashboard.nutrients.associateBy { it.code }
-    val goals = dashboard.goal?.nutrients?.associateBy { it.code }.orEmpty()
-    Text("Calories ${dashboard.calories}", style = MaterialTheme.typography.titleLarge)
-    listOf("protein", "carbohydrates", "fat").forEach { code ->
-        MacroProgress(code, consumed[code]?.amount ?: "0", goals[code]?.amount)
+    SectionCard {
+        Text("${dashboard.calories.toDisplayNumber()} kcal", style = MaterialTheme.typography.headlineMedium)
+        Text("Consumed", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        val consumed = dashboard.nutrients.associateBy { it.code }
+        val goals = dashboard.goal?.nutrients?.associateBy { it.code }.orEmpty()
+        listOf("protein", "carbohydrates", "fat").forEach { code ->
+            val amount = consumed[code]?.amount ?: "0"
+            val target = goals[code]?.amount
+            val value = amount.toBigDecimalOrNull() ?: BigDecimal.ZERO
+            val goal = target?.toBigDecimalOrNull()?.takeIf { it.signum() > 0 }
+            Text(code.displayLabel(), fontWeight = FontWeight.SemiBold)
+            Text("${amount.toDisplayNumber()} g${target?.let { " of ${it.toDisplayNumber()} g" } ?: ""}")
+            goal?.let {
+                val progress = value.divide(it, 4, RoundingMode.HALF_UP).toFloat().coerceIn(0f, 1f)
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "$code progress" },
+                )
+                val remaining = it.subtract(value)
+                Text(
+                    if (remaining.signum() < 0) "${remaining.abs().toPlainString().toDisplayNumber()} g over target"
+                    else "${remaining.toPlainString().toDisplayNumber()} g remaining",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        dashboard.goal?.let { Text("Targets active since ${it.effectiveLocalDate.localizedDate()}", style = MaterialTheme.typography.bodyMedium) }
     }
-    dashboard.goal?.let { Text("Goals effective from ${it.effectiveLocalDate}") }
 }
 
 @Composable
-private fun MacroProgress(code: String, amount: String, target: String?) {
-    val consumed = amount.toBigDecimalOrNull() ?: BigDecimal.ZERO
-    val goal = target?.toBigDecimalOrNull()
-    val progress = goal?.takeIf { it.signum() > 0 }?.let { consumed.divide(it, 4, java.math.RoundingMode.HALF_UP).toFloat().coerceIn(0f, 1f) }
-    val remaining = goal?.subtract(consumed)
-    Text("${code.displayName()}: $amount g${target?.let { " / $it g" } ?: ""}")
-    if (progress != null) {
-        LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "$code progress" })
-        val isOverGoal = (remaining?.signum() ?: 0) < 0
-        Text(if (isOverGoal) "${remaining?.abs()} g over goal" else "${remaining ?: BigDecimal.ZERO} g remaining")
-    }
-}
-
-@Composable
-private fun LogRationContent(state: TrackingUiState, viewModel: TrackingViewModel) {
+private fun LogRation(state: TrackingUiState, viewModel: TrackingViewModel, onRecipes: () -> Unit) {
     val draft = state.rationDraft ?: return
-    Text("Log ration", style = MaterialTheme.typography.titleLarge)
-    OutlinedTextField(draft.recipeQuery, { viewModel.updateDraft(query = it) }, label = { Text("Search recipes") }, modifier = Modifier.fillMaxWidth())
-    if (draft.isLoadingRecipes) CircularProgressIndicator()
-    draft.recipes.forEach { recipe ->
-        TextButton(onClick = { viewModel.selectRecipe(recipe) }, modifier = Modifier.fillMaxWidth()) {
-            Text(if (draft.selectedRecipe?.id == recipe.id) "Selected: ${recipe.name}" else recipe.name)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = { viewModel.navigate(TrackingDestination.Dashboard) }) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to Today")
+        }
+        ScreenIntro("Log a ration", "Choose a recipe, enter the amount, then review before saving.", Modifier.weight(1f))
+    }
+    Text("1. Choose a recipe", style = MaterialTheme.typography.titleLarge)
+    OutlinedTextField(
+        value = draft.recipeQuery,
+        onValueChange = { viewModel.updateDraft(query = it) },
+        label = { Text("Search recipes") },
+        supportingText = { Text("Search by recipe name") },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    if (draft.isLoadingRecipes) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+    if (!draft.isLoadingRecipes && draft.recipes.isEmpty()) {
+        EmptyState("No recipes found", "Recipes define the nutrition used for your ration.", "Create a recipe", onRecipes)
+    } else {
+        draft.recipes.forEach { recipe ->
+            val selected = draft.selectedRecipe?.id == recipe.id
+            OutlinedButton(onClick = { viewModel.selectRecipe(recipe) }, modifier = Modifier.fillMaxWidth()) {
+                Text(if (selected) "Selected: ${recipe.name}" else recipe.name, modifier = Modifier.weight(1f))
+                if (selected) Icon(Icons.Default.CheckCircle, contentDescription = null)
+            }
         }
     }
-    OutlinedTextField(draft.grams, { viewModel.updateDraft(grams = it) }, label = { Text("Grams") }, modifier = Modifier.fillMaxWidth())
-    OutlinedTextField(draft.consumedAt, { viewModel.updateDraft(consumedAt = it) }, label = { Text("Exact time (ISO-8601)") }, modifier = Modifier.fillMaxWidth())
-    OutlinedTextField(draft.note, { viewModel.updateDraft(note = it) }, label = { Text("Note (optional)") }, modifier = Modifier.fillMaxWidth())
+    Text("2. Add the amount", style = MaterialTheme.typography.titleLarge)
+    OutlinedTextField(
+        value = draft.grams,
+        onValueChange = { viewModel.updateDraft(grams = it) },
+        label = { Text("Amount eaten") },
+        suffix = { Text("g") },
+        supportingText = { Text("Use the weight of the prepared recipe") },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    val consumedLocalDate = runCatching { Instant.parse(draft.consumedAt).atZone(ZoneId.systemDefault()).toLocalDate() }.getOrDefault(LocalDate.now())
+    LocaleDateField("Date eaten", consumedLocalDate.toString(), { date ->
+        val current = runCatching { Instant.parse(draft.consumedAt).atZone(ZoneId.systemDefault()).toLocalTime() }.getOrDefault(java.time.LocalTime.now())
+        viewModel.updateDraft(consumedAt = LocalDate.parse(date).atTime(current).atZone(ZoneId.systemDefault()).toInstant().toString())
+    })
+    Text("Recorded at ${draft.consumedAt.localizedDateTime()}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    OutlinedTextField(
+        value = draft.note,
+        onValueChange = { viewModel.updateDraft(note = it) },
+        label = { Text("Note") },
+        supportingText = { Text("Optional") },
+        modifier = Modifier.fillMaxWidth(),
+    )
     draft.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-    Button(onClick = viewModel::previewRation, enabled = !draft.isSubmitting) { Text("Review contribution") }
+    Button(onClick = viewModel::previewRation, enabled = !draft.isSubmitting && draft.selectedRecipe != null && draft.grams.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
+        Text(if (draft.isSubmitting) "Reviewing…" else "Review contribution")
+    }
     draft.preview?.let { preview ->
-        Text("${preview.recipeName}: ${preview.calories} calories", style = MaterialTheme.typography.titleMedium)
-        preview.nutrients.forEach { nutrient -> Text("${nutrient.code.displayName()}: ${nutrient.amount} g") }
-        Button(onClick = viewModel::confirmRation, enabled = !draft.isSubmitting) { Text("Confirm ration") }
+        SectionCard {
+            Text("3. Review", style = MaterialTheme.typography.titleLarge)
+            Text(preview.recipeName, style = MaterialTheme.typography.titleMedium)
+            Text("${preview.calories.toDisplayNumber()} kcal")
+            preview.nutrients.forEach { Text("${it.code.displayLabel()}: ${it.amount.toDisplayNumber()} g") }
+            Button(onClick = viewModel::confirmRation, enabled = !draft.isSubmitting, modifier = Modifier.fillMaxWidth()) { Text("Log ration") }
+        }
     }
 }
 
 @Composable
-private fun GoalEditorContent(state: TrackingUiState, viewModel: TrackingViewModel) {
+private fun Goals(state: TrackingUiState, viewModel: TrackingViewModel) {
     val editor = state.goalEditor
-    Text("Goals", style = MaterialTheme.typography.titleLarge)
-    OutlinedTextField(editor.effectiveDate, { viewModel.updateGoal(effectiveDate = it) }, label = { Text("Effective date") }, modifier = Modifier.fillMaxWidth())
-    OutlinedTextField(editor.protein, { viewModel.updateGoal(protein = it) }, label = { Text("Protein grams") }, modifier = Modifier.fillMaxWidth())
-    OutlinedTextField(editor.carbohydrates, { viewModel.updateGoal(carbohydrates = it) }, label = { Text("Carbohydrates grams") }, modifier = Modifier.fillMaxWidth())
-    OutlinedTextField(editor.fat, { viewModel.updateGoal(fat = it) }, label = { Text("Fat grams") }, modifier = Modifier.fillMaxWidth())
+    ScreenIntro("Goals", "Set daily macro targets. Changes apply from the date you choose and keep older days interpretable.")
+    LocaleDateField("Effective date", editor.effectiveDate, { viewModel.updateGoal(effectiveDate = it) })
+    SectionCard {
+        Text("Daily targets", style = MaterialTheme.typography.titleLarge)
+        OutlinedTextField(editor.protein, { viewModel.updateGoal(protein = it) }, label = { Text("Protein") }, suffix = { Text("g") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+        OutlinedTextField(editor.carbohydrates, { viewModel.updateGoal(carbohydrates = it) }, label = { Text("Carbohydrates") }, suffix = { Text("g") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+        OutlinedTextField(editor.fat, { viewModel.updateGoal(fat = it) }, label = { Text("Fat") }, suffix = { Text("g") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+    }
     editor.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-    Button(onClick = viewModel::saveGoal, enabled = !editor.isSubmitting) { Text("Save goals") }
+    Button(onClick = viewModel::saveGoal, enabled = !editor.isSubmitting, modifier = Modifier.fillMaxWidth()) { Text(if (editor.isSubmitting) "Saving…" else "Save goals") }
 }
 
 @Composable
-private fun HistoryContent(state: TrackingUiState, viewModel: TrackingViewModel) {
-    Text("History", style = MaterialTheme.typography.titleLarge)
-    OutlinedTextField(state.historyQuery, { viewModel.updateHistory(query = it) }, label = { Text("Search rations") }, modifier = Modifier.fillMaxWidth())
-    OutlinedTextField(state.historyFrom, { viewModel.updateHistory(from = it) }, label = { Text("From date") }, modifier = Modifier.fillMaxWidth())
-    OutlinedTextField(state.historyTo, { viewModel.updateHistory(to = it) }, label = { Text("To date") }, modifier = Modifier.fillMaxWidth())
-    state.historyError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-    if (state.isLoadingHistory) CircularProgressIndicator()
-    if (state.history.isEmpty() && !state.isLoadingHistory) Text("No rations match these filters.")
-    state.history.forEach { ration -> RationRow(ration, { viewModel.openRation(ration.id) }) }
-    state.historyCursor?.let { Button(onClick = viewModel::loadMoreHistory, enabled = !state.isLoadingHistory) { Text("Load more") } }
+private fun History(state: TrackingUiState, viewModel: TrackingViewModel) {
+    ScreenIntro("History", "Find previous rations by recipe or date.")
+    OutlinedTextField(state.historyQuery, { viewModel.updateHistory(query = it) }, label = { Text("Search history") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        LocaleDateField("From", state.historyFrom, { viewModel.updateHistory(from = it) }, Modifier.weight(1f), optional = true)
+        LocaleDateField("To", state.historyTo, { viewModel.updateHistory(to = it) }, Modifier.weight(1f), optional = true)
+    }
+    when {
+        state.isLoadingHistory && state.history.isEmpty() -> CircularProgressIndicator()
+        state.historyError != null -> ErrorState(state.historyError) { viewModel.navigate(TrackingDestination.History) }
+        state.history.isEmpty() -> EmptyState("No matching rations", "Try another search or clear the date filters.")
+        else -> {
+            if (state.isLoadingHistory) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            state.history.forEach { ration -> RationRow(ration) { viewModel.openRation(ration.id) } }
+            state.historyCursor?.let { OutlinedButton(onClick = viewModel::loadMoreHistory, modifier = Modifier.fillMaxWidth()) { Text("Load more") } }
+        }
+    }
+}
+
+@Composable
+private fun Settings(state: TrackingUiState, viewModel: TrackingViewModel) {
+    ScreenIntro("Settings", "Keep local dates aligned with where you live.")
+    SectionCard {
+        Text("Timezone", style = MaterialTheme.typography.titleLarge)
+        Text("Changing timezone reclassifies existing rations into local days. Their nutrition and exact recorded time do not change.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        OutlinedTextField(state.timezone, { viewModel.updateTimezoneDraft(it) }, label = { Text("IANA timezone") }, supportingText = { Text("Example: Europe/Berlin") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+    }
+    state.timezoneError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+    Button(onClick = { viewModel.updateTimezone(state.timezone) }, enabled = !state.isUpdatingTimezone, modifier = Modifier.fillMaxWidth()) { Text(if (state.isUpdatingTimezone) "Saving…" else "Save timezone") }
 }
 
 @Composable
 private fun RationRow(ration: RationSummary, onClick: () -> Unit) {
-    TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Text("${ration.recipeName} - ${ration.consumedGrams} g")
-            Text("${ration.consumedLocalDate} ${ration.consumedAt}", style = MaterialTheme.typography.bodySmall)
+    SectionCard(modifier = Modifier.clickable(onClick = onClick)) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(ration.recipeName, style = MaterialTheme.typography.titleMedium)
+                Text("${ration.consumedGrams.toDisplayNumber()} g · ${ration.consumedAt.localizedDateTime()}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Open ration")
         }
     }
 }
@@ -198,27 +291,18 @@ private fun RationDetailDialog(detail: RationDetail, onDismiss: () -> Unit, onDe
         onDismissRequest = onDismiss,
         title = { Text(detail.recipeName) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("${detail.consumedGrams} g at ${detail.consumedAt}")
-                Text("Day: ${detail.consumedLocalDate} (${detail.timezone})")
-                Text("Calories ${detail.calories}")
-                detail.nutrients.forEach { nutrient -> Text("${nutrient.code.displayName()}: ${nutrient.amount} g") }
-                detail.note?.let { Text(it) }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("${detail.consumedGrams.toDisplayNumber()} g · ${detail.consumedAt.localizedDateTime()}")
+                Text("${detail.calories.toDisplayNumber()} kcal", style = MaterialTheme.typography.titleLarge)
+                HorizontalDivider()
+                detail.nutrients.forEach { Text("${it.code.displayLabel()}: ${it.amount.toDisplayNumber()} g") }
+                detail.note?.takeIf(String::isNotBlank)?.let { Text(it) }
             }
         },
-        confirmButton = { Button(onClick = onDelete) { Text("Delete and re-log") } },
+        confirmButton = { TextButton(onClick = onDelete) { Text("Delete and re-log") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } },
     )
 }
 
-@Composable
-private fun TimezoneContent(state: TrackingUiState, viewModel: TrackingViewModel) {
-    var timezone by rememberSaveable(state.timezone) { mutableStateOf(state.timezone) }
-    Text("Timezone", style = MaterialTheme.typography.titleLarge)
-    Text("Changing timezone reclassifies existing rations into the new local days. Nutrient snapshots remain unchanged.")
-    OutlinedTextField(timezone, { timezone = it }, label = { Text("IANA timezone") }, modifier = Modifier.fillMaxWidth())
-    state.timezoneError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-    Button(onClick = { viewModel.updateTimezone(timezone) }, enabled = !state.isUpdatingTimezone) { Text("Save timezone") }
-}
-
-private fun String.displayName() = split('_').joinToString(" ") { it.replaceFirstChar { character -> character.uppercase() } }
+private fun String.displayLabel() = split('_').joinToString(" ") { it.replaceFirstChar(Char::uppercase) }
+private fun String.toDisplayNumber() = toBigDecimalOrNull()?.stripTrailingZeros()?.toPlainString() ?: this

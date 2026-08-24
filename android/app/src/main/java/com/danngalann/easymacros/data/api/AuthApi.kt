@@ -150,6 +150,15 @@ interface IngredientApi {
         @Query("query") query: String,
         @Query("hidden") hidden: Boolean,
     ): IngredientListResponse
+
+    @POST("ingredients/manual-candidates")
+    suspend fun createManualCandidate(@Body request: ManualIngredientRequest): ManualIngredientCandidateResponse
+
+    @POST("ingredient-candidates/{candidateId}/confirm")
+    suspend fun confirmCandidate(
+        @retrofit2.http.Path("candidateId") candidateId: String,
+        @Body request: ConfirmIngredientCandidateRequest,
+    ): IngredientDetailResponse
 }
 
 data class RecipeListResponse(val recipes: List<RecipeSummaryResponse>)
@@ -192,6 +201,25 @@ data class RecipeRequest(
 data class RecipeComponentRequest(val ingredientId: String, val quantityGrams: String)
 data class IngredientListResponse(val ingredients: List<IngredientSummaryResponse>)
 data class IngredientSummaryResponse(val id: String, val name: String, val hidden: Boolean)
+data class ManualIngredientRequest(
+    val name: String,
+    val brand: String?,
+    val nutrients: List<NutrientAmountResponse>,
+)
+data class ManualIngredientCandidateResponse(
+    val id: String,
+    val version: String,
+    val name: String,
+    val brand: String?,
+    val nutrients: List<NutrientAmountResponse>,
+    val status: String,
+)
+data class ConfirmIngredientCandidateRequest(val version: String)
+data class IngredientDetailResponse(
+    val id: String,
+    val name: String,
+    val hidden: Boolean,
+)
 
 sealed class ApiException : Exception() {
     data class Http(val statusCode: Int, val retryAfterSeconds: Int?) : ApiException()

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.danngalann.easymacros.data.repository.ApiFailure
 import com.danngalann.easymacros.data.repository.IngredientSummary
+import com.danngalann.easymacros.data.repository.IngredientDraft
 import com.danngalann.easymacros.data.repository.RecipeComponent
 import com.danngalann.easymacros.data.repository.RecipeDetail
 import com.danngalann.easymacros.data.repository.RecipeDraft
@@ -31,9 +32,23 @@ data class RecipeEditorState(
     val error: String? = null,
     val isLoadingIngredients: Boolean = false,
     val isSubmitting: Boolean = false,
+    val ingredientEditor: IngredientEditorState? = null,
 ) {
     val isDirty: Boolean get() = name.isNotBlank() || notes.isNotBlank() || yieldGrams.isNotBlank() || components.isNotEmpty()
     fun draft() = RecipeDraft(name, notes, yieldGrams, components, versionNumber)
+}
+
+data class IngredientEditorState(
+    val name: String = "",
+    val brand: String = "",
+    val protein: String = "",
+    val carbohydrates: String = "",
+    val fat: String = "",
+    val isReviewing: Boolean = false,
+    val isSubmitting: Boolean = false,
+    val error: String? = null,
+) {
+    fun draft() = IngredientDraft(name, brand, protein, carbohydrates, fat)
 }
 
 data class RecipesUiState(
@@ -66,7 +81,7 @@ class RecipesViewModel @Inject constructor(
         _state.value = _state.value.copy(isLoading = true, error = null)
         repository.recipe(recipeId).onSuccess { detail ->
             _state.value = _state.value.copy(detail = detail, isLoading = false)
-        }.onFailure { error -> _state.value = _state.value.copy(isLoading = false, error = error.userMessage()) }
+        }.onFailure { error -> _state.value = _state.value.copy(isLoading = false, error = error.openMessage()) }
     }
 
     fun closeDetail() { _state.value = _state.value.copy(detail = null, pendingDelete = null) }
@@ -128,6 +143,70 @@ class RecipesViewModel @Inject constructor(
         updateEditorComponents(_state.value.editor?.components.orEmpty().filterNot { it.ingredientId == ingredientId })
     }
 
+    fun openIngredientEditor() {
+        _state.value = _state.value.copy(editor = _state.value.editor?.copy(ingredientEditor = IngredientEditorState()))
+    }
+
+    fun closeIngredientEditor() {
+        _state.value = _state.value.copy(editor = _state.value.editor?.copy(ingredientEditor = null))
+    }
+
+    fun updateIngredientEditor(
+        name: String? = null,
+        brand: String? = null,
+        protein: String? = null,
+        carbohydrates: String? = null,
+        fat: String? = null,
+    ) {
+        val editor = _state.value.editor ?: return
+        val ingredient = editor.ingredientEditor ?: return
+        _state.value = _state.value.copy(editor = editor.copy(ingredientEditor = ingredient.copy(
+            name = name ?: ingredient.name,
+            brand = brand ?: ingredient.brand,
+            protein = protein ?: ingredient.protein,
+            carbohydrates = carbohydrates ?: ingredient.carbohydrates,
+            fat = fat ?: ingredient.fat,
+            isReviewing = false,
+            error = null,
+        )))
+    }
+
+    fun reviewIngredient() {
+        val editor = _state.value.editor ?: return
+        val ingredient = editor.ingredientEditor ?: return
+        if (!ingredient.isValid()) {
+            _state.value = _state.value.copy(editor = editor.copy(ingredientEditor = ingredient.copy(
+                error = "Add a name and non-negative protein, carbohydrate, and fat values per 100 g.",
+            )))
+            return
+        }
+        _state.value = _state.value.copy(editor = editor.copy(ingredientEditor = ingredient.copy(isReviewing = true, error = null)))
+    }
+
+    fun confirmIngredient() {
+        val editor = _state.value.editor ?: return
+        val ingredient = editor.ingredientEditor ?: return
+        if (!ingredient.isReviewing || ingredient.isSubmitting) return
+        _state.value = _state.value.copy(editor = editor.copy(ingredientEditor = ingredient.copy(isSubmitting = true, error = null)))
+        viewModelScope.launch {
+            repository.createIngredient(ingredient.draft()).onSuccess { created ->
+                val current = _state.value.editor ?: return@onSuccess
+                _state.value = _state.value.copy(editor = current.copy(
+                    components = current.components + RecipeComponent(created.id, created.name, ""),
+                    ingredients = (current.ingredients + created).distinctBy(IngredientSummary::id),
+                    ingredientEditor = null,
+                    preview = null,
+                ))
+            }.onFailure { error ->
+                val current = _state.value.editor ?: return@onFailure
+                _state.value = _state.value.copy(editor = current.copy(ingredientEditor = current.ingredientEditor?.copy(
+                    isSubmitting = false,
+                    error = error.ingredientMessage(),
+                )))
+            }
+        }
+    }
+
     fun preview() = submit(
         operation = { draft -> repository.preview(draft) },
         success = { preview ->
@@ -153,7 +232,7 @@ class RecipesViewModel @Inject constructor(
             repository.delete(recipe.id).onSuccess {
                 _state.value = _state.value.copy(detail = null, isLoading = false)
                 loadRecipes()
-            }.onFailure { error -> _state.value = _state.value.copy(isLoading = false, error = error.userMessage()) }
+            }.onFailure { error -> _state.value = _state.value.copy(isLoading = false, error = error.deleteMessage()) }
         }
     }
 
@@ -165,7 +244,7 @@ class RecipesViewModel @Inject constructor(
         _state.value = _state.value.copy(isLoading = true, error = null)
         repository.recipes(_state.value.query).onSuccess { recipes ->
             _state.value = _state.value.copy(recipes = recipes, isLoading = false)
-        }.onFailure { error -> _state.value = _state.value.copy(isLoading = false, error = error.userMessage()) }
+        }.onFailure { error -> _state.value = _state.value.copy(isLoading = false, error = error.listMessage()) }
     }
 
     private fun loadIngredients() {
@@ -175,7 +254,7 @@ class RecipesViewModel @Inject constructor(
             repository.ingredients(editor.ingredientQuery, editor.showHiddenIngredients).onSuccess { ingredients ->
                 _state.value = _state.value.copy(editor = _state.value.editor?.copy(ingredients = ingredients, isLoadingIngredients = false))
             }.onFailure { error ->
-                _state.value = _state.value.copy(editor = _state.value.editor?.copy(isLoadingIngredients = false, error = error.userMessage()))
+                _state.value = _state.value.copy(editor = _state.value.editor?.copy(isLoadingIngredients = false, error = error.ingredientListMessage()))
             }
         }
     }
@@ -198,6 +277,8 @@ class RecipesViewModel @Inject constructor(
 
 private fun RecipeEditorState.isValid() = name.isNotBlank() && yieldGrams.isPositiveDecimal() && components.isNotEmpty() && components.all { it.quantityGrams.isPositiveDecimal() }
 private fun String.isPositiveDecimal() = Regex("\\d+(\\.\\d+)?").matches(this) && toBigDecimalOrNull()?.signum() == 1
+private fun String.isNonNegativeDecimal() = Regex("\\d+(\\.\\d+)?").matches(this) && (toBigDecimalOrNull()?.signum() ?: -1) >= 0
+private fun IngredientEditorState.isValid() = name.isNotBlank() && protein.isNonNegativeDecimal() && carbohydrates.isNonNegativeDecimal() && fat.isNonNegativeDecimal()
 private fun Throwable.userMessage() = when (this) {
     is ApiFailure.Http -> when (statusCode) {
         401 -> "Your session has expired. Sign in again."
@@ -207,4 +288,38 @@ private fun Throwable.userMessage() = when (this) {
     }
     ApiFailure.Network -> "Unable to reach EasyMacros. Check your connection and try again."
     else -> "Something went wrong. Try again."
+}
+
+private fun Throwable.listMessage() = when (this) {
+    ApiFailure.Network -> "Unable to reach EasyMacros. Check your connection and try again."
+    is ApiFailure.Http -> if (statusCode == 401) "Your session has expired. Sign in again." else "Unable to load recipes right now. Try again."
+    else -> "Something went wrong while loading recipes. Try again."
+}
+
+private fun Throwable.openMessage() = when (this) {
+    ApiFailure.Network -> "Unable to reach EasyMacros. Check your connection and try again."
+    is ApiFailure.Http -> if (statusCode == 404) "This recipe is no longer available." else "Unable to open this recipe. Try again."
+    else -> "Something went wrong while opening this recipe. Try again."
+}
+
+private fun Throwable.deleteMessage() = when (this) {
+    ApiFailure.Network -> "Unable to reach EasyMacros. Check your connection and try again."
+    is ApiFailure.Http -> "Unable to delete this recipe. Refresh and try again."
+    else -> "Something went wrong while deleting this recipe. Try again."
+}
+
+private fun Throwable.ingredientMessage() = when (this) {
+    ApiFailure.Network -> "Unable to reach EasyMacros. Check your connection and try again."
+    is ApiFailure.Http -> when (statusCode) {
+        401 -> "Your session has expired. Sign in again."
+        409 -> "This ingredient confirmation expired. Review the values and try again."
+        else -> "Unable to create this ingredient. Check the values and try again."
+    }
+    else -> "Something went wrong while creating the ingredient. Try again."
+}
+
+private fun Throwable.ingredientListMessage() = when (this) {
+    ApiFailure.Network -> "Unable to reach EasyMacros. Check your connection and try again."
+    is ApiFailure.Http -> if (statusCode == 401) "Your session has expired. Sign in again." else "Unable to load ingredients right now. Try again."
+    else -> "Something went wrong while loading ingredients. Try again."
 }

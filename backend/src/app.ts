@@ -15,12 +15,28 @@ export interface BuildAppOptions {
 }
 
 export async function buildApp({ config, database }: BuildAppOptions = {}) {
-  const app = Fastify({ logger: false, trustProxy: config?.trustedProxyHops || false });
+  const app = Fastify({
+    disableRequestLogging: true,
+    logger: config ? { level: "info" } : false,
+    trustProxy: config?.trustedProxyHops || false,
+  });
   const auth = config && database ? new AuthService(database, config) : undefined;
   const ingredients = database ? new IngredientService(database) : undefined;
   const workflows = database ? new NutritionWorkflowService(database) : undefined;
 
   await app.register(rateLimit, { global: false });
+
+  app.addHook("onResponse", async (request, reply) => {
+    if (reply.statusCode < 400) return;
+    const details = {
+      method: request.method,
+      requestId: request.id,
+      route: request.routeOptions.url,
+      statusCode: reply.statusCode,
+    };
+    if (reply.statusCode >= 500) request.log.error(details, "request failed");
+    else request.log.warn(details, "request rejected");
+  });
 
   await app.register(swagger, {
     openapi: {
@@ -469,7 +485,7 @@ export async function buildApp({ config, database }: BuildAppOptions = {}) {
     },
   );
 
-  app.setErrorHandler((error, _request, reply) => {
+  app.setErrorHandler((error, request, reply) => {
     if (error instanceof AuthError) {
       if (error.retryAfterSeconds) {
         reply.header("Retry-After", String(error.retryAfterSeconds));
@@ -484,7 +500,18 @@ export async function buildApp({ config, database }: BuildAppOptions = {}) {
     if (error instanceof WorkflowError) {
       return reply.code(error.statusCode).send({ code: error.code });
     }
-    return reply.send(error);
+    const errorDetails =
+      typeof error === "object" && error !== null
+        ? (error as { code?: unknown; name?: unknown })
+        : {};
+    request.log.error(
+      {
+        errorCode: typeof errorDetails.code === "string" ? errorDetails.code : undefined,
+        errorName: typeof errorDetails.name === "string" ? errorDetails.name : "UnknownError",
+      },
+      "unhandled request error",
+    );
+    return reply.code(500).send({ code: "internal_error" });
   });
 
   app.addHook("onClose", async () => {

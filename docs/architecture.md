@@ -11,9 +11,10 @@ EasyMacros is a monorepo with two independently buildable applications:
 
 The backend loads and validates its runtime configuration at startup. It connects to
 PostgreSQL through a small `pg` pool boundary, which provides the database readiness
-check. Timestamped SQL migrations are applied transactionally and tracked in the
-`schema_migrations` table. The API publishes its OpenAPI document and interactive
-documentation through Fastify plugins.
+check. Readiness requires both a working PostgreSQL connection and the latest tracked
+schema migration; connectivity alone is not sufficient. Timestamped SQL migrations are
+applied transactionally and tracked in the `schema_migrations` table. The API publishes
+its OpenAPI document and interactive documentation through Fastify plugins.
 
 Phase 4 adds a PostgreSQL nutrition domain. The seeded nutrient catalog is shared by
 user-owned ingredients, immutable recipe-version snapshots, ration snapshots, and

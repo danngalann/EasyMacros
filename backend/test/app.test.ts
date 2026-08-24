@@ -80,4 +80,18 @@ describe("health endpoint", () => {
     expect(paths).toHaveProperty("/dashboard");
     expect(paths).toHaveProperty("/me/timezone");
   });
+
+  it("does not expose unexpected exception details", async () => {
+    const app = await buildApp();
+    apps.add(app);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: { username: "test-user", password: "test-password" },
+    });
+
+    expect(response.statusCode).toBe(500);
+    expect(response.json()).toEqual({ code: "internal_error" });
+  });
 });

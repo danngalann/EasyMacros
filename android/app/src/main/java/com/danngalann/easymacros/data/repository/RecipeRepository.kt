@@ -1,6 +1,9 @@
 package com.danngalann.easymacros.data.repository
 
 import com.danngalann.easymacros.data.api.IngredientApi
+import com.danngalann.easymacros.data.api.ConfirmIngredientCandidateRequest
+import com.danngalann.easymacros.data.api.ManualIngredientRequest
+import com.danngalann.easymacros.data.api.NutrientAmountResponse
 import com.danngalann.easymacros.data.api.RecipeApi
 import com.danngalann.easymacros.data.api.RecipeDetailResponse
 import com.danngalann.easymacros.data.api.RecipeRequest
@@ -30,6 +33,13 @@ data class RecipeDetail(
 data class RecipeComponent(val ingredientId: String, val ingredientName: String, val quantityGrams: String)
 data class RecipePreview(val nutrients: List<NutrientAmount>, val calories: String)
 data class IngredientSummary(val id: String, val name: String, val hidden: Boolean)
+data class IngredientDraft(
+    val name: String,
+    val brand: String,
+    val protein: String,
+    val carbohydrates: String,
+    val fat: String,
+)
 data class RecipeDraft(
     val name: String,
     val notes: String,
@@ -42,6 +52,7 @@ interface RecipeRepository {
     suspend fun recipes(query: String): Result<List<RecipeSummary>>
     suspend fun recipe(recipeId: String): Result<RecipeDetail>
     suspend fun ingredients(query: String, hidden: Boolean): Result<List<IngredientSummary>>
+    suspend fun createIngredient(draft: IngredientDraft): Result<IngredientSummary>
     suspend fun preview(draft: RecipeDraft): Result<RecipePreview>
     suspend fun save(recipeId: String?, draft: RecipeDraft): Result<RecipeDetail>
     suspend fun delete(recipeId: String): Result<Unit>
@@ -60,6 +71,22 @@ class DefaultRecipeRepository @Inject constructor(
 
     override suspend fun ingredients(query: String, hidden: Boolean) = request {
         ingredientApi.ingredients(query, hidden).ingredients.map { IngredientSummary(it.id, it.name, it.hidden) }
+    }
+
+    override suspend fun createIngredient(draft: IngredientDraft) = request {
+        val candidate = ingredientApi.createManualCandidate(
+            ManualIngredientRequest(
+                name = draft.name.trim(),
+                brand = draft.brand.trim().takeIf { it.isNotEmpty() },
+                nutrients = listOf(
+                    NutrientAmountResponse("protein", draft.protein),
+                    NutrientAmountResponse("carbohydrates", draft.carbohydrates),
+                    NutrientAmountResponse("fat", draft.fat),
+                ),
+            ),
+        )
+        ingredientApi.confirmCandidate(candidate.id, ConfirmIngredientCandidateRequest(candidate.version))
+            .let { IngredientSummary(it.id, it.name, it.hidden) }
     }
 
     override suspend fun preview(draft: RecipeDraft) = request {

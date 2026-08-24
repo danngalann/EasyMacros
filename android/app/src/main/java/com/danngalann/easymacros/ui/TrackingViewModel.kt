@@ -220,6 +220,10 @@ class TrackingViewModel @Inject constructor(
         }
     }
 
+    fun updateTimezoneDraft(timezone: String) {
+        _state.value = _state.value.copy(timezone = timezone, timezoneError = null)
+    }
+
     private fun loadDashboard(date: LocalDate) = viewModelScope.launch {
         _state.value = _state.value.copy(date = date, isLoadingDashboard = true, dashboardError = null)
         dashboardRepository.dashboard(date.toString()).onSuccess { dashboard ->

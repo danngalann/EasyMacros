@@ -14,6 +14,13 @@ applies `safeDrawingPadding`; each screen retains its local content spacing insi
 safe area. `MaterialTheme` provides Compose styling; the XML theme supplies window-level
 activity resources.
 
+The Compose root applies `EasyMacrosTheme`, whose default is a dark Material 3 color
+scheme with high-contrast green and amber actions. `AuthenticatedApp` owns the persistent
+top app bar, logout action, five primary bottom-navigation destinations, and the Today
+screen's ration logging action. Today, History, Recipes, Goals, and Settings therefore
+retain the same navigation model; back navigation is reserved for subordinate flows such
+as ration logging, recipe detail, and recipe editing.
+
 Phase 6 establishes a feature-oriented Android foundation. Hilt owns application-wide
 dependencies. `data/api` contains Retrofit wire DTOs and endpoints, while
 `data/repository` maps API outcomes to app behavior and owns authentication session
@@ -35,6 +42,10 @@ In debug builds, `EasyMacrosNetwork` logs an `IOException` with only the request
 host, and path so connectivity errors are diagnosable in Logcat. Network bodies, query
 values, headers, and bearer tokens are never logged.
 
+The base manifest declares `INTERNET` for Retrofit requests. The authentication password
+field uses `KeyboardType.Password`, which signals the input method to suppress normal
+text suggestions and offer password-oriented actions instead.
+
 Phase 7 replaces the authenticated placeholder with a daily dashboard. `DashboardApi`
 calls the protected `GET /dashboard` endpoint through the same bearer-token interceptor
 and refresh authenticator. `DashboardRepository` maps wire DTOs into display models;
@@ -51,6 +62,22 @@ request, prevents duplicate submissions, and asks `POST /recipes/preview` for di
 totals. Creating or updating then receives the persisted immutable version from the
 server; Android never calculates recipe nutrients itself.
 
+The recipe editor can also create a manual ingredient without discarding the recipe
+draft. `IngredientEditorState` retains the name, optional brand, and protein,
+carbohydrate, and fat values per 100 g through recomposition and configuration changes.
+After a local review step, `RecipeRepository` creates a manual nutrient candidate and
+confirms its returned version through the protected API. The confirmed user-owned
+ingredient is then added to the active recipe component list. Android does not bypass
+the backend's candidate confirmation or calculate ingredient nutrients.
+
+Recipes also links to a dedicated `IngredientsScreen` subflow for bulk library setup.
+`IngredientsViewModel` owns its search, list, loading, error, and reviewed editor state;
+after each successful confirmation it reloads the catalog so another ingredient can be
+entered immediately. The Recipes bottom-navigation destination remains selected while
+this subordinate screen is open, avoiding a cramped sixth primary destination. Logging
+consumption still uses immutable recipe/ration snapshots; an ingredient catalog record
+is not itself a logged ration.
+
 Phase 9 replaces the dashboard-only authenticated view with `TrackingViewModel` and a
 coordinated dashboard, log-ration, goals, history, and settings workspace. The
 ViewModel owns immutable `TrackingUiState`: selected date, server dashboard, ration
@@ -63,3 +90,12 @@ nutrients or calories, instead rendering `POST /rations/preview` and dashboard v
 Timezone changes are explicit and warn that the backend reclassifies existing ration
 days while retaining their instant and nutrient snapshots. Corrections delete a ration
 and require a new log, so the UI does not offer an in-place edit of historical totals.
+
+The tracking and recipe workspaces use shared screen introductions, bounded
+section cards, full-width primary actions, and mutually exclusive loading, content,
+empty, and error surfaces. Empty database results guide the user toward the next valid
+action and are not presented as failures. Locale-aware date pickers and formatters render
+dates and instants using the device locale; ViewModels and repositories continue to own
+ISO-8601 strings at API boundaries. Drafts, filters, selected dates, and dialogs remain
+in their Hilt ViewModels, so recomposition and configuration changes redraw rather than
+reset active flows.

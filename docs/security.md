@@ -36,7 +36,12 @@ the repository. Never place it in an image, command line, CI log, or issue. The 
 neither HTTP bodies nor tokens. Android release builds do not install transport logging;
 they also do not opt into cleartext traffic. The debug manifest alone permits cleartext
 for a trusted-LAN development API. Debug builds log failed transport requests using only
-the method, host, and path, never query values, bodies, headers, or tokens. Retain
-reverse-proxy and application logs only for the period needed for operations and incident
-response, with restricted access. Follow the rotation and recovery instructions in
-[deployment.md](deployment.md) when a credential is suspected compromised.
+the method, host, path, and non-success HTTP status, never query values, bodies, headers,
+or tokens. Configured backend runtime instances disable Fastify's raw request logging and
+emit only the request ID, method, route template, and status for rejected or failed
+responses. Unexpected exceptions return only `{ "code": "internal_error" }`; application
+logs retain the exception type and machine-readable code, such as a PostgreSQL SQLSTATE,
+without the exception message, SQL, or values. Retain reverse-proxy and application logs
+only for the period needed for operations and incident response, with restricted access.
+Follow the rotation and recovery instructions in [deployment.md](deployment.md) when a
+credential is suspected compromised.

@@ -1,6 +1,8 @@
 package com.danngalann.easymacros.ui
 
 import com.danngalann.easymacros.data.repository.IngredientSummary
+import com.danngalann.easymacros.data.repository.IngredientDraft
+import com.danngalann.easymacros.data.repository.ApiFailure
 import com.danngalann.easymacros.data.repository.NutrientAmount
 import com.danngalann.easymacros.data.repository.RecipeComponent
 import com.danngalann.easymacros.data.repository.RecipeDetail
@@ -82,20 +84,66 @@ class RecipesViewModelTest {
         assertFalse(viewModel.state.value.isLoading)
         assertEquals("recipe-1", viewModel.state.value.detail?.id)
     }
+
+    @Test fun `recipe list failure never reports a save error`() = runTest {
+        val viewModel = RecipesViewModel(FakeRecipeRepository(recipesResult = Result.failure(ApiFailure.Http(500))))
+
+        runCurrent()
+
+        assertEquals("Unable to load recipes right now. Try again.", viewModel.state.value.error)
+    }
+
+    @Test fun `reviews and confirms a manual ingredient into the recipe draft`() = runTest {
+        val repository = FakeRecipeRepository()
+        val viewModel = RecipesViewModel(repository)
+        runCurrent()
+        viewModel.createRecipe()
+        runCurrent()
+
+        viewModel.openIngredientEditor()
+        viewModel.updateIngredientEditor(name = "Greek yogurt", protein = "10", carbohydrates = "4", fat = "0")
+        viewModel.reviewIngredient()
+
+        assertEquals(true, viewModel.state.value.editor?.ingredientEditor?.isReviewing)
+        viewModel.confirmIngredient()
+        runCurrent()
+
+        assertEquals("Greek yogurt", repository.createdIngredientDraft?.name)
+        assertEquals("ingredient-created", viewModel.state.value.editor?.components?.single()?.ingredientId)
+        assertEquals(null, viewModel.state.value.editor?.ingredientEditor)
+    }
+
+    @Test fun `ingredient list failure never reports a recipe save error`() = runTest {
+        val repository = FakeRecipeRepository(ingredientsResult = Result.failure(ApiFailure.Http(500)))
+        val viewModel = RecipesViewModel(repository)
+        runCurrent()
+
+        viewModel.createRecipe()
+        runCurrent()
+
+        assertEquals("Unable to load ingredients right now. Try again.", viewModel.state.value.editor?.error)
+    }
 }
 
 private class FakeRecipeRepository(
     private val saveResult: Result<RecipeDetail> = Result.success(recipeDetail()),
+    private val recipesResult: Result<List<RecipeSummary>> = Result.success(listOf(RecipeSummary("recipe-1", "Rice bowl", "300", 1))),
+    private val ingredientsResult: Result<List<IngredientSummary>> = Result.success(listOf(IngredientSummary("ingredient-1", "Rice", false))),
 ) : RecipeRepository {
     var previewedDraft: RecipeDraft? = null
     val hiddenRequests = mutableListOf<Boolean>()
     var saveCalls = 0
+    var createdIngredientDraft: IngredientDraft? = null
 
-    override suspend fun recipes(query: String) = Result.success(listOf(RecipeSummary("recipe-1", "Rice bowl", "300", 1)))
+    override suspend fun recipes(query: String) = recipesResult
     override suspend fun recipe(recipeId: String) = Result.success(recipeDetail())
     override suspend fun ingredients(query: String, hidden: Boolean): Result<List<IngredientSummary>> {
         hiddenRequests += hidden
-        return Result.success(listOf(IngredientSummary("ingredient-1", "Rice", hidden)))
+        return ingredientsResult.map { ingredients -> ingredients.map { it.copy(hidden = hidden) } }
+    }
+    override suspend fun createIngredient(draft: IngredientDraft): Result<IngredientSummary> {
+        createdIngredientDraft = draft
+        return Result.success(IngredientSummary("ingredient-created", draft.name, false))
     }
     override suspend fun preview(draft: RecipeDraft): Result<RecipePreview> {
         previewedDraft = draft

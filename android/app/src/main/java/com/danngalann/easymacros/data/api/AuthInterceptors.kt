@@ -26,7 +26,9 @@ class NetworkFailureLoggingInterceptor : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
         return try {
-            chain.proceed(request)
+            chain.proceed(request).also { response ->
+                if (!response.isSuccessful) Log.w(LOG_TAG, request.httpFailureMessage(response.code))
+            }
         } catch (error: IOException) {
             Log.e(LOG_TAG, request.networkFailureMessage(), error)
             throw error
@@ -53,5 +55,6 @@ class RefreshAuthenticator @Inject constructor(private val coordinator: RefreshC
 }
 
 internal fun Request.networkFailureMessage() = "Network request failed: $method ${url.host}${url.encodedPath}"
+internal fun Request.httpFailureMessage(statusCode: Int) = "HTTP request failed: $method ${url.host}${url.encodedPath} -> $statusCode"
 
 private const val LOG_TAG = "EasyMacrosNetwork"
