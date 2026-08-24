@@ -24,6 +24,10 @@ Run the backend outside Docker:
 make backend-dev
 ```
 
+The generated local `.env` binds the API to `0.0.0.0:3000`, allowing a device on the
+trusted LAN to reach `http://<development-machine-LAN-IP>:3000`. The PostgreSQL port
+remains bound only to `127.0.0.1`. Stop the API when LAN access is no longer needed.
+
 ## Validation
 
 ```sh

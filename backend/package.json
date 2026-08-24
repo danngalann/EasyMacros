@@ -5,12 +5,12 @@
   "type": "module",
   "scripts": {
     "build": "rm -rf dist && tsc --project tsconfig.build.json && cp -R migrations dist/migrations",
-    "dev": "tsx watch src/server.ts",
-    "migrate": "tsx src/migrate.ts",
+    "dev": "tsx watch --env-file=../.env src/server.ts",
+    "migrate": "tsx --env-file=../.env src/migrate.ts",
     "migrate:production": "node dist/src/migrate.js",
-    "start": "tsx src/server.ts",
+    "start": "tsx --env-file=../.env src/server.ts",
     "start:production": "node dist/src/server.js",
-    "user:create": "tsx src/user-create.ts",
+    "user:create": "tsx --env-file=../.env src/user-create.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"

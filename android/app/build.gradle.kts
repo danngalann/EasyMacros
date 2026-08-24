@@ -22,7 +22,7 @@ android {
         versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:3000/\"")
+        buildConfigField("String", "API_BASE_URL", "\"http://192.168.0.30:3000/\"")
     }
 
     buildTypes {
