@@ -21,6 +21,12 @@ screen's ration logging action. Today, History, Recipes, Goals, and Settings the
 retain the same navigation model; back navigation is reserved for subordinate flows such
 as ration logging, recipe detail, and recipe editing.
 
+Launcher branding uses density-specific lossless WebP legacy icons, transparent PNG round
+icons, and adaptive-icon XML on API 26+. The adaptive PNG foreground retains mask-safe
+spacing over a solid charcoal-green background; API 33+ also exposes a monochrome
+silhouette for themed icons. The application manifest references
+`@mipmap/ic_launcher` and `@mipmap/ic_launcher_round`.
+
 Phase 6 establishes a feature-oriented Android foundation. Hilt owns application-wide
 dependencies. `data/api` contains Retrofit wire DTOs and endpoints, while
 `data/repository` maps API outcomes to app behavior and owns authentication session

@@ -252,6 +252,11 @@ handles recipe/tracking and primary-destination behavior. A transient success me
 `LaunchedEffect` timeout is cancelled when the composable leaves, so
 `DisposableEffect.onDispose` also clears it and prevents stale feedback from returning.
 
+Android launchers can apply circles, squircles, or vendor-specific masks. A single square
+bitmap can therefore be cropped unpredictably. EasyMacros supplies density-scaled legacy
+and round bitmaps, then uses adaptive-icon XML to separate a mask-safe foreground from a
+solid background. Android 13 can recolor the separate monochrome layer for themed icons.
+
 A server-side session can disappear while the activity and `AuthViewModel` remain
 alive, such as after `make dev-db-reset`. Clearing DataStore alone does not recompose the
 root authentication graph. `RefreshCoordinator` therefore publishes a `SharedFlow`
