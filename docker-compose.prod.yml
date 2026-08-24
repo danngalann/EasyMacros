@@ -24,6 +24,22 @@ services:
         reservations:
           memory: 256M
 
+  image-jobs-init:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    user: "0:0"
+    command:
+      [
+        "sh",
+        "-c",
+        "mkdir -p /var/lib/easymacros/images && chown -R node:node /var/lib/easymacros/images",
+      ]
+    volumes:
+      - easymacros-production-image-jobs:/var/lib/easymacros/images
+    read_only: true
+    restart: "no"
+
   api:
     container_name: easymacros
     build:
@@ -63,6 +79,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      image-jobs-init:
+        condition: service_completed_successfully
     restart: unless-stopped
     healthcheck:
       test:

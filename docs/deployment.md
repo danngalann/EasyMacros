@@ -36,7 +36,9 @@ curl --fail http://127.0.0.1:3000/v1/health/ready
 
 The non-root API image compiles TypeScript, packages SQL migrations, runs pending
 migrations before starting the server, uses a read-only root filesystem, and receives a
-writable `/tmp` tmpfs. Its persistent image-job volume is reserved for temporary
+writable `/tmp` tmpfs. Before the API starts, the one-shot `image-jobs-init` service
+creates and assigns its persistent image-job volume to the `node` user; this permits AI
+image uploads without granting the API root access. The volume is reserved for temporary
 ingestion jobs. Do not scale `api` above one replica in v1: local temporary image storage
 is not shared between replicas, and every API process would also race to run startup
 migrations.
