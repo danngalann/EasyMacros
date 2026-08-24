@@ -5,6 +5,7 @@ import com.danngalann.easymacros.data.api.AuthApi
 import com.danngalann.easymacros.data.api.AuthHeaderInterceptor
 import com.danngalann.easymacros.data.api.DashboardApi
 import com.danngalann.easymacros.data.api.IngredientApi
+import com.danngalann.easymacros.data.api.NetworkFailureLoggingInterceptor
 import com.danngalann.easymacros.data.api.RefreshAuthenticator
 import com.danngalann.easymacros.data.api.RecipeApi
 import com.danngalann.easymacros.data.api.TrackingApi
@@ -44,6 +45,7 @@ abstract class RepositoryModule {
 object NetworkModule {
     @Provides @Singleton @Named("refresh") fun provideRefreshAuthApi(): AuthApi = Retrofit.Builder()
         .baseUrl(BuildConfig.API_BASE_URL)
+        .client(networkClient())
         .addConverterFactory(GsonConverterFactory.create())
         .build()
         .create(AuthApi::class.java)
@@ -53,7 +55,7 @@ object NetworkModule {
         authenticator: RefreshAuthenticator,
     ): AuthApi = Retrofit.Builder()
         .baseUrl(BuildConfig.API_BASE_URL)
-        .client(OkHttpClient.Builder().addInterceptor(interceptor).authenticator(authenticator).build())
+        .client(networkClient(interceptor, authenticator))
         .addConverterFactory(GsonConverterFactory.create())
         .build()
         .create(AuthApi::class.java)
@@ -63,7 +65,7 @@ object NetworkModule {
         authenticator: RefreshAuthenticator,
     ): DashboardApi = Retrofit.Builder()
         .baseUrl(BuildConfig.API_BASE_URL)
-        .client(OkHttpClient.Builder().addInterceptor(interceptor).authenticator(authenticator).build())
+        .client(networkClient(interceptor, authenticator))
         .addConverterFactory(GsonConverterFactory.create())
         .build()
         .create(DashboardApi::class.java)
@@ -88,7 +90,16 @@ object NetworkModule {
         authenticator: RefreshAuthenticator,
     ): Retrofit = Retrofit.Builder()
         .baseUrl(BuildConfig.API_BASE_URL)
-        .client(OkHttpClient.Builder().addInterceptor(interceptor).authenticator(authenticator).build())
+        .client(networkClient(interceptor, authenticator))
         .addConverterFactory(GsonConverterFactory.create())
         .build()
+
+    private fun networkClient(
+        interceptor: AuthHeaderInterceptor? = null,
+        authenticator: RefreshAuthenticator? = null,
+    ): OkHttpClient = OkHttpClient.Builder().apply {
+        interceptor?.let(::addInterceptor)
+        authenticator?.let(::authenticator)
+        if (BuildConfig.DEBUG) addInterceptor(NetworkFailureLoggingInterceptor())
+    }.build()
 }

@@ -9,8 +9,10 @@ means Android Studio can open `EasyMacros/android` directly without reading pnpm
 
 The `app` module uses Kotlin, the Android application plugin, and the Kotlin Compose
 compiler plugin. `MainActivity` is the single activity and calls `setContent` to create
-the Compose UI tree. `MaterialTheme` provides Compose styling; the XML theme supplies
-window-level activity resources.
+the Compose UI tree. It explicitly enables edge-to-edge, while the root `Surface`
+applies `safeDrawingPadding`; each screen retains its local content spacing inside that
+safe area. `MaterialTheme` provides Compose styling; the XML theme supplies window-level
+activity resources.
 
 Phase 6 establishes a feature-oriented Android foundation. Hilt owns application-wide
 dependencies. `data/api` contains Retrofit wire DTOs and endpoints, while
@@ -27,9 +29,11 @@ An OkHttp interceptor adds the access token to protected calls. Its authenticato
 at most one refresh-and-retry after a `401`, using a separate unauthenticated Retrofit
 client so the refresh request cannot recurse through the authenticator.
 
-The API base URL is a `BuildConfig` value. Debug builds use the Android emulator host
-address `http://10.0.2.2:3000/`; release builds must provide a TLS endpoint before
-distribution. Network bodies and bearer tokens are never logged.
+The API base URL is a `BuildConfig` value. The debug manifest permits cleartext HTTP for
+the local development API; release builds must provide a TLS endpoint before distribution.
+In debug builds, `EasyMacrosNetwork` logs an `IOException` with only the request method,
+host, and path so connectivity errors are diagnosable in Logcat. Network bodies, query
+values, headers, and bearer tokens are never logged.
 
 Phase 7 replaces the authenticated placeholder with a daily dashboard. `DashboardApi`
 calls the protected `GET /dashboard` endpoint through the same bearer-token interceptor

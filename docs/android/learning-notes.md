@@ -11,9 +11,11 @@ UI tree. A composable describes UI from state; when state changes later, Compose
 recompose that portion of the tree rather than imperatively editing views.
 
 `MaterialTheme` and `Surface` wrap the current placeholder content. They do not retain
-application state. The activity owns the initial UI lifecycle, while future ViewModels
-will retain screen state across configuration changes and expose immutable state to
-composables.
+application state. `enableEdgeToEdge` lets the window use the full display, while the
+root `Surface` uses `safeDrawingPadding` to keep screen content below the status bar,
+camera cutout, and navigation areas; each screen then adds its ordinary content padding.
+The activity owns the initial UI lifecycle, while future ViewModels will retain screen
+state across configuration changes and expose immutable state to composables.
 
 The Phase 1 JVM test verifies the generated application ID. `lint` catches Android
 resource and manifest issues, while `assembleDebug` proves the app can be packaged.
@@ -32,6 +34,19 @@ The repository writes successful login/register/refresh results to storage, maps
 and connectivity failures to standard errors, and serializes refresh rotation with a
 `Mutex`. Cancellation remains cooperative: a cancelled screen coroutine does not block
 the UI, while the repository owns the durable persisted result.
+
+All Retrofit clients use the shared OkHttp construction in `NetworkModule`. Debug builds
+install `NetworkFailureLoggingInterceptor`, which records an `IOException` under the
+`EasyMacrosNetwork` Logcat tag with the method, host, path, and exception stack trace.
+It deliberately excludes request bodies, headers, and query values, so a request can be
+traced without exposing credentials, tokens, or opaque cursors. The focused JVM test
+proves the message redacts a query value.
+
+The debug source set has its own manifest overlay with `usesCleartextTraffic="true"` for
+the trusted-LAN development API. Manifest overlays are selected by build variant, so this
+does not relax the release network-security policy; a distributed build still requires
+HTTPS. The merged debug manifest is a useful troubleshooting check when Logcat reports
+that cleartext communication is not permitted.
 
 DataStore provides asynchronous persistence but not encryption. The session store
 encrypts its plaintext with an AES-GCM key held by Android Keystore before writing it to

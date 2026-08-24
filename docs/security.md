@@ -33,7 +33,10 @@ client IP's per-minute cap independently for registration, login, and refresh.
 
 Production secrets are injected through an operator-controlled Compose env file outside
 the repository. Never place it in an image, command line, CI log, or issue. The API logs
-neither HTTP bodies nor tokens. Retain reverse-proxy and application logs only for the
-period needed for operations and incident response, with restricted access. Follow the
-rotation and recovery instructions in [deployment.md](deployment.md) when a credential is
-suspected compromised.
+neither HTTP bodies nor tokens. Android release builds do not install transport logging;
+they also do not opt into cleartext traffic. The debug manifest alone permits cleartext
+for a trusted-LAN development API. Debug builds log failed transport requests using only
+the method, host, and path, never query values, bodies, headers, or tokens. Retain
+reverse-proxy and application logs only for the period needed for operations and incident
+response, with restricted access. Follow the rotation and recovery instructions in
+[deployment.md](deployment.md) when a credential is suspected compromised.

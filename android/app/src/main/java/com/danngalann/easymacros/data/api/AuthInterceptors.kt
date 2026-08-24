@@ -1,7 +1,9 @@
 package com.danngalann.easymacros.data.api
 
+import android.util.Log
 import com.danngalann.easymacros.data.repository.RefreshCoordinator
 import com.danngalann.easymacros.data.repository.SessionStore
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.runBlocking
@@ -17,6 +19,18 @@ class AuthHeaderInterceptor @Inject constructor(private val sessionStore: Sessio
         val token = runBlocking { sessionStore.read()?.accessToken }
         val request = token?.let { chain.request().newBuilder().header("Authorization", "Bearer $it").build() } ?: chain.request()
         return chain.proceed(request)
+    }
+}
+
+class NetworkFailureLoggingInterceptor : Interceptor {
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val request = chain.request()
+        return try {
+            chain.proceed(request)
+        } catch (error: IOException) {
+            Log.e(LOG_TAG, request.networkFailureMessage(), error)
+            throw error
+        }
     }
 }
 
@@ -37,3 +51,7 @@ class RefreshAuthenticator @Inject constructor(private val coordinator: RefreshC
         return count
     }
 }
+
+internal fun Request.networkFailureMessage() = "Network request failed: $method ${url.host}${url.encodedPath}"
+
+private const val LOG_TAG = "EasyMacrosNetwork"

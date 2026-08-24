@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -34,7 +35,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 fun EasyMacrosApp(authViewModel: AuthViewModel = hiltViewModel()) {
     val state by authViewModel.state.collectAsStateWithLifecycle()
     MaterialTheme {
-        Surface(modifier = Modifier.fillMaxSize()) {
+        Surface(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
             when {
                 state.isRestoring -> Text("Restoring session", modifier = Modifier.padding(24.dp))
                 state.isAuthenticated -> AuthenticatedShell(onLogout = authViewModel::logout)
