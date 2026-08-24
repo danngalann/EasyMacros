@@ -23,7 +23,6 @@ data class RecipeEditorState(
     val versionNumber: Int? = null,
     val name: String = "",
     val notes: String = "",
-    val yieldGrams: String = "",
     val components: List<RecipeComponent> = emptyList(),
     val ingredientQuery: String = "",
     val showHiddenIngredients: Boolean = false,
@@ -34,8 +33,8 @@ data class RecipeEditorState(
     val isSubmitting: Boolean = false,
     val ingredientEditor: IngredientEditorState? = null,
 ) {
-    val isDirty: Boolean get() = name.isNotBlank() || notes.isNotBlank() || yieldGrams.isNotBlank() || components.isNotEmpty()
-    fun draft() = RecipeDraft(name, notes, yieldGrams, components, versionNumber)
+    val isDirty: Boolean get() = name.isNotBlank() || notes.isNotBlank() || components.isNotEmpty()
+    fun draft() = RecipeDraft(name, notes, components, versionNumber)
 }
 
 data class IngredientEditorState(
@@ -99,7 +98,6 @@ class RecipesViewModel @Inject constructor(
                 versionNumber = detail.versionNumber,
                 name = detail.name,
                 notes = detail.notes.orEmpty(),
-                yieldGrams = detail.yieldGrams,
                 components = detail.components,
             ),
         )
@@ -111,7 +109,6 @@ class RecipesViewModel @Inject constructor(
     fun updateEditor(
         name: String? = null,
         notes: String? = null,
-        yieldGrams: String? = null,
         ingredientQuery: String? = null,
         showHiddenIngredients: Boolean? = null,
     ) {
@@ -119,7 +116,6 @@ class RecipesViewModel @Inject constructor(
         val updated = editor.copy(
             name = name ?: editor.name,
             notes = notes ?: editor.notes,
-            yieldGrams = yieldGrams ?: editor.yieldGrams,
             ingredientQuery = ingredientQuery ?: editor.ingredientQuery,
             showHiddenIngredients = showHiddenIngredients ?: editor.showHiddenIngredients,
             preview = null,
@@ -131,6 +127,19 @@ class RecipesViewModel @Inject constructor(
 
     fun addIngredient(ingredient: IngredientSummary) {
         updateEditorComponents((_state.value.editor?.components.orEmpty() + RecipeComponent(ingredient.id, ingredient.name, "")))
+    }
+
+    fun addCreatedIngredient(id: String, name: String) {
+        val editor = _state.value.editor ?: return
+        val ingredient = IngredientSummary(id, name, false)
+        _state.value = _state.value.copy(
+            editor = editor.copy(
+                components = (editor.components + RecipeComponent(id, name, "")).distinctBy { it.ingredientId },
+                ingredients = (editor.ingredients + ingredient).distinctBy(IngredientSummary::id),
+                preview = null,
+                error = null,
+            ),
+        )
     }
 
     fun updateComponentQuantity(ingredientId: String, quantityGrams: String) {
@@ -263,7 +272,7 @@ class RecipesViewModel @Inject constructor(
         val editor = _state.value.editor ?: return
         if (editor.isSubmitting) return
         if (!editor.isValid()) {
-            _state.value = _state.value.copy(editor = editor.copy(error = "Add a name, positive yield, and positive grams for every ingredient."))
+            _state.value = _state.value.copy(editor = editor.copy(error = "Add a name and positive grams for every ingredient."))
             return
         }
         _state.value = _state.value.copy(editor = editor.copy(isSubmitting = true, error = null))
@@ -275,7 +284,7 @@ class RecipesViewModel @Inject constructor(
     }
 }
 
-private fun RecipeEditorState.isValid() = name.isNotBlank() && yieldGrams.isPositiveDecimal() && components.isNotEmpty() && components.all { it.quantityGrams.isPositiveDecimal() }
+private fun RecipeEditorState.isValid() = name.isNotBlank() && components.isNotEmpty() && components.all { it.quantityGrams.isPositiveDecimal() }
 private fun String.isPositiveDecimal() = Regex("\\d+(\\.\\d+)?").matches(this) && toBigDecimalOrNull()?.signum() == 1
 private fun String.isNonNegativeDecimal() = Regex("\\d+(\\.\\d+)?").matches(this) && (toBigDecimalOrNull()?.signum() ?: -1) >= 0
 private fun IngredientEditorState.isValid() = name.isNotBlank() && protein.isNonNegativeDecimal() && carbohydrates.isNonNegativeDecimal() && fat.isNonNegativeDecimal()

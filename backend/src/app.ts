@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
@@ -7,6 +8,7 @@ import { AuthError, AuthService } from "./auth.js";
 import type { AppConfig } from "./config.js";
 import type { Database } from "./database.js";
 import { IngredientError, IngredientService } from "./ingredients.js";
+import { IngredientCandidateService } from "./ingredient-ingestion.js";
 import { NutritionWorkflowService, WorkflowError } from "./workflows.js";
 
 export interface BuildAppOptions {
@@ -22,9 +24,14 @@ export async function buildApp({ config, database }: BuildAppOptions = {}) {
   });
   const auth = config && database ? new AuthService(database, config) : undefined;
   const ingredients = database ? new IngredientService(database) : undefined;
+  const candidates =
+    config && database ? new IngredientCandidateService(database, config) : undefined;
   const workflows = database ? new NutritionWorkflowService(database) : undefined;
 
   await app.register(rateLimit, { global: false });
+  await app.register(multipart, {
+    limits: { files: 4, fields: 4, parts: 8, fileSize: config?.aiMaxUploadBytes ?? 8_388_608 },
+  });
 
   app.addHook("onResponse", async (request, reply) => {
     if (reply.statusCode < 400) return;
@@ -128,6 +135,13 @@ export async function buildApp({ config, database }: BuildAppOptions = {}) {
       throw new Error("Nutrition requires database");
     }
     return workflows;
+  }
+
+  function requireCandidateService(): IngredientCandidateService {
+    if (!candidates) {
+      throw new Error("External candidates require database and config");
+    }
+    return candidates;
   }
 
   function clientIp(request: { ip: string }): string {
@@ -253,6 +267,62 @@ export async function buildApp({ config, database }: BuildAppOptions = {}) {
     },
   );
 
+  const candidateParams = {
+    type: "object",
+    required: ["candidateId"],
+    properties: { candidateId: { type: "string", format: "uuid" } },
+  } as const;
+  const candidateResponse = {
+    type: "object",
+    required: [
+      "id",
+      "status",
+      "source",
+      "suggestedName",
+      "brand",
+      "barcode",
+      "basisQuantity",
+      "nutrients",
+      "confidence",
+      "warnings",
+      "provenance",
+      "version",
+      "expiresAt",
+    ],
+    properties: {
+      id: { type: "string", format: "uuid" },
+      status: {
+        type: "string",
+        enum: ["pending", "processing", "ready", "failed", "cancelled", "expired", "confirmed"],
+      },
+      source: { type: "string", enum: ["manual", "barcode", "ai"] },
+      suggestedName: { type: "string" },
+      brand: { anyOf: [{ type: "string" }, { type: "null" }] },
+      barcode: { anyOf: [{ type: "string" }, { type: "null" }] },
+      basisQuantity: { type: "integer", enum: [100] },
+      nutrients: {
+        type: "array",
+        items: {
+          type: "object",
+          required: ["code", "amount"],
+          properties: {
+            code: { type: "string" },
+            displayName: { type: "string" },
+            amount: { type: "string" },
+            unit: { type: "string", enum: ["g", "mg", "ug"] },
+            derived: { type: "boolean" },
+          },
+        },
+      },
+      confidence: { anyOf: [{ type: "string" }, { type: "null" }] },
+      warnings: { type: "array", items: { type: "string" } },
+      provenance: { type: "object", additionalProperties: true },
+      version: { type: "string", format: "uuid" },
+      expiresAt: { type: "string", format: "date-time" },
+      errorCode: { type: "string" },
+    },
+  } as const;
+
   app.get<{ Params: { ingredientId: string } }>(
     "/ingredients/:ingredientId",
     { schema: { tags: ["ingredients"] } },
@@ -268,20 +338,163 @@ export async function buildApp({ config, database }: BuildAppOptions = {}) {
 
   app.post<{
     Body: { brand?: string; name: string; nutrients: Array<{ amount: string; code: string }> };
-  }>("/ingredients/manual-candidates", { schema: { tags: ["ingredients"] } }, async (request) => {
-    const identity = await requireIdentity(request);
-    return requireIngredientService().createManualCandidate(identity.userId, request.body);
-  });
+  }>(
+    "/ingredients/manual-candidates",
+    { schema: { response: { 200: candidateResponse }, tags: ["ingredients"] } },
+    async (request) => {
+      const identity = await requireIdentity(request);
+      return requireIngredientService().createManualCandidate(identity.userId, request.body);
+    },
+  );
 
-  app.post<{ Body: { version: string }; Params: { candidateId: string } }>(
+  app.post<{ Body: { barcode: string } }>(
+    "/ingredient-candidates/barcode",
+    {
+      schema: {
+        body: {
+          type: "object",
+          additionalProperties: false,
+          required: ["barcode"],
+          properties: { barcode: { type: "string", minLength: 8, maxLength: 32 } },
+        },
+        response: { 200: candidateResponse },
+        tags: ["ingredients"],
+      },
+    },
+    async (request) => {
+      const identity = await requireIdentity(request);
+      return requireCandidateService().createBarcode(identity.userId, request.body.barcode);
+    },
+  );
+
+  app.post(
+    "/ingredient-candidates/ai",
+    {
+      schema: {
+        consumes: ["multipart/form-data"],
+        response: { 202: candidateResponse },
+        tags: ["ingredients"],
+      },
+    },
+    async (request, reply) => {
+      const identity = await requireIdentity(request);
+      const images: Array<{ buffer: Buffer; mime: string }> = [];
+      let description: string | undefined;
+      let mode: "auto" | "label" | "generic" = "auto";
+      let idempotencyKey: string | undefined;
+      for await (const part of request.parts()) {
+        if (part.type === "file") {
+          if (part.fieldname !== "images") throw new IngredientError("invalid_image", 400);
+          images.push({ buffer: await part.toBuffer(), mime: part.mimetype });
+        } else if (part.fieldname === "description" && typeof part.value === "string")
+          description = part.value;
+        else if (
+          part.fieldname === "mode" &&
+          typeof part.value === "string" &&
+          ["auto", "label", "generic"].includes(part.value)
+        ) {
+          mode = part.value as typeof mode;
+        } else if (part.fieldname === "idempotencyKey" && typeof part.value === "string")
+          idempotencyKey = part.value;
+      }
+      if (images.length === 0) throw new IngredientError("invalid_image", 400);
+      const candidate = await requireCandidateService().createAi(identity.userId, request.ip, {
+        images,
+        description,
+        mode,
+        idempotencyKey,
+      });
+      return reply.code(202).send(candidate);
+    },
+  );
+
+  app.get<{ Params: { candidateId: string } }>(
+    "/ingredient-candidates/:candidateId",
+    {
+      schema: {
+        params: candidateParams,
+        response: { 200: candidateResponse },
+        tags: ["ingredients"],
+      },
+    },
+    async (request) => {
+      const identity = await requireIdentity(request);
+      return requireCandidateService().get(identity.userId, request.params.candidateId);
+    },
+  );
+
+  app.post<{ Params: { candidateId: string } }>(
+    "/ingredient-candidates/:candidateId/retry",
+    {
+      schema: {
+        params: candidateParams,
+        response: { 200: candidateResponse },
+        tags: ["ingredients"],
+      },
+    },
+    async (request) => {
+      const identity = await requireIdentity(request);
+      return requireCandidateService().retry(identity.userId, request.params.candidateId);
+    },
+  );
+
+  app.delete<{ Params: { candidateId: string } }>(
+    "/ingredient-candidates/:candidateId",
+    { schema: { params: candidateParams, tags: ["ingredients"] } },
+    async (request, reply) => {
+      const identity = await requireIdentity(request);
+      await requireCandidateService().cancel(identity.userId, request.params.candidateId);
+      return reply.code(204).send();
+    },
+  );
+
+  app.post<{
+    Body: {
+      version: string;
+      name: string;
+      brand?: string;
+      barcode?: string;
+      nutrients: Array<{ amount: string; code: string }>;
+    };
+    Params: { candidateId: string };
+  }>(
     "/ingredient-candidates/:candidateId/confirm",
-    { schema: { tags: ["ingredients"] } },
+    {
+      schema: {
+        params: candidateParams,
+        body: {
+          type: "object",
+          additionalProperties: false,
+          required: ["version", "name", "nutrients"],
+          properties: {
+            version: { type: "string", format: "uuid" },
+            name: { type: "string", minLength: 1, maxLength: 200 },
+            brand: { type: "string", maxLength: 200 },
+            barcode: { type: "string", maxLength: 32 },
+            nutrients: {
+              type: "array",
+              minItems: 3,
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["code", "amount"],
+                properties: {
+                  code: { type: "string" },
+                  amount: { type: "string", pattern: "^\\d+(\\.\\d+)?$" },
+                },
+              },
+            },
+          },
+        },
+        tags: ["ingredients"],
+      },
+    },
     async (request) => {
       const identity = await requireIdentity(request);
       return requireIngredientService().confirmCandidate(
         identity.userId,
         request.params.candidateId,
-        request.body.version,
+        request.body,
       );
     },
   );
@@ -329,7 +542,6 @@ export async function buildApp({ config, database }: BuildAppOptions = {}) {
       expectedVersion?: number;
       name: string;
       notes?: string;
-      yieldGrams: string;
     };
   }>("/recipes", { schema: { tags: ["recipes"] } }, async (request) => {
     const identity = await requireIdentity(request);
@@ -341,7 +553,6 @@ export async function buildApp({ config, database }: BuildAppOptions = {}) {
       components: Array<{ ingredientId: string; quantityGrams: string }>;
       name: string;
       notes?: string;
-      yieldGrams: string;
     };
   }>("/recipes/preview", { schema: { tags: ["recipes"] } }, async (request) => {
     const identity = await requireIdentity(request);
@@ -366,7 +577,6 @@ export async function buildApp({ config, database }: BuildAppOptions = {}) {
       components: Array<{ ingredientId: string; quantityGrams: string }>;
       name: string;
       notes?: string;
-      yieldGrams: string;
     };
     Params: { recipeId: string };
   }>("/recipes/:recipeId", { schema: { tags: ["recipes"] } }, async (request) => {
@@ -517,6 +727,10 @@ export async function buildApp({ config, database }: BuildAppOptions = {}) {
   app.addHook("onClose", async () => {
     await database?.close();
   });
+
+  if (candidates) {
+    app.addHook("onReady", async () => candidates.recover());
+  }
 
   return app;
 }

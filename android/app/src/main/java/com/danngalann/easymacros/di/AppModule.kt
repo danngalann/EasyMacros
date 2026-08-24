@@ -19,6 +19,8 @@ import com.danngalann.easymacros.data.repository.RecipeRepository
 import com.danngalann.easymacros.data.repository.SessionStore
 import com.danngalann.easymacros.data.repository.DefaultTrackingRepository
 import com.danngalann.easymacros.data.repository.TrackingRepository
+import com.danngalann.easymacros.data.repository.DefaultIngredientRepository
+import com.danngalann.easymacros.data.repository.IngredientRepository
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -38,6 +40,7 @@ abstract class RepositoryModule {
     @Binds abstract fun bindDashboardRepository(repository: DefaultDashboardRepository): DashboardRepository
     @Binds abstract fun bindRecipeRepository(repository: DefaultRecipeRepository): RecipeRepository
     @Binds abstract fun bindTrackingRepository(repository: DefaultTrackingRepository): TrackingRepository
+    @Binds abstract fun bindIngredientRepository(repository: DefaultIngredientRepository): IngredientRepository
 }
 
 @Module

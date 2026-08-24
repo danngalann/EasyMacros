@@ -12,6 +12,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import retrofit2.HttpException
 
 data class Session(val accessToken: String, val refreshToken: String, val sessionId: String, val expiresAtMillis: Long)
@@ -23,6 +26,7 @@ interface SessionStore {
 }
 
 interface AuthRepository {
+    val sessionInvalidations: Flow<Unit>
     suspend fun restoreSession(): Boolean
     suspend fun login(username: String, password: String): Result<Unit>
     suspend fun register(username: String, password: String): Result<Unit>
@@ -35,6 +39,8 @@ class DefaultAuthRepository @Inject constructor(
     private val api: AuthApi,
     private val refreshCoordinator: RefreshCoordinator,
 ) : AuthRepository {
+    override val sessionInvalidations = refreshCoordinator.sessionInvalidations
+
     override suspend fun restoreSession(): Boolean {
         val session = refreshCoordinator.currentSession() ?: return false
         return if (session.expiresAtMillis > System.currentTimeMillis() || refresh()) true else false
@@ -69,6 +75,8 @@ class RefreshCoordinator @Inject constructor(
     private val sessionStore: SessionStore,
 ) {
     private val refreshMutex = Mutex()
+    private val _sessionInvalidations = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val sessionInvalidations = _sessionInvalidations.asSharedFlow()
 
     suspend fun currentSession() = sessionStore.read()
     suspend fun clear() = sessionStore.clear()
@@ -80,6 +88,7 @@ class RefreshCoordinator @Inject constructor(
             true
         } catch (_: Exception) {
             sessionStore.clear()
+            _sessionInvalidations.emit(Unit)
             false
         }
     }

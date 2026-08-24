@@ -1,5 +1,6 @@
 package com.danngalann.easymacros.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -33,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 private enum class AppDestination(val label: String, val icon: ImageVector) {
     Today("Today", Icons.Default.CalendarMonth),
@@ -47,8 +49,13 @@ private enum class AppDestination(val label: String, val icon: ImageVector) {
 fun AuthenticatedApp(
     onLogout: () -> Unit,
     trackingViewModel: TrackingViewModel = hiltViewModel(),
+    recipesViewModel: RecipesViewModel = hiltViewModel(),
+    ingredientsViewModel: IngredientsViewModel = hiltViewModel(),
 ) {
     var destination by rememberSaveable { mutableStateOf(AppDestination.Today) }
+    var ingredientReturnToRecipe by rememberSaveable { mutableStateOf(false) }
+    val trackingState by trackingViewModel.state.collectAsStateWithLifecycle()
+    val recipesState by recipesViewModel.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(destination) {
         val trackingDestination = when (destination) {
@@ -59,6 +66,26 @@ fun AuthenticatedApp(
             AppDestination.Recipes, AppDestination.Ingredients -> null
         }
         trackingDestination?.let(trackingViewModel::navigate)
+    }
+
+    BackHandler(
+        enabled = destination != AppDestination.Ingredients &&
+            (
+                destination != AppDestination.Today ||
+                    trackingState.destination != TrackingDestination.Dashboard ||
+                    recipesState.editor != null ||
+                    recipesState.detail != null
+                ),
+    ) {
+        when {
+            destination == AppDestination.Recipes && recipesState.editor != null ->
+                recipesViewModel.discardEditor()
+            destination == AppDestination.Recipes && recipesState.detail != null ->
+                recipesViewModel.closeDetail()
+            destination != AppDestination.Today -> destination = AppDestination.Today
+            trackingState.destination != TrackingDestination.Dashboard ->
+                trackingViewModel.navigate(TrackingDestination.Dashboard)
+        }
     }
 
     Scaffold(
@@ -86,7 +113,7 @@ fun AuthenticatedApp(
             }
         },
         floatingActionButton = {
-            if (destination == AppDestination.Today) {
+            if (shouldShowLogRationAction(destination.name, trackingState.destination)) {
                 ExtendedFloatingActionButton(
                     onClick = trackingViewModel::openLog,
                     icon = { Icon(Icons.Default.Add, contentDescription = null) },
@@ -97,10 +124,40 @@ fun AuthenticatedApp(
     ) { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding)) {
             when (destination) {
-                AppDestination.Recipes -> RecipesScreen(onIngredients = { destination = AppDestination.Ingredients })
-                AppDestination.Ingredients -> IngredientsScreen(onBack = { destination = AppDestination.Recipes })
+                AppDestination.Recipes -> RecipesScreen(
+                    onIngredients = {
+                        ingredientReturnToRecipe = false
+                        destination = AppDestination.Ingredients
+                    },
+                    onCreateIngredient = {
+                        ingredientReturnToRecipe = true
+                        ingredientsViewModel.chooseMethod()
+                        destination = AppDestination.Ingredients
+                    },
+                    viewModel = recipesViewModel,
+                )
+                AppDestination.Ingredients -> IngredientsScreen(
+                    onBack = {
+                        ingredientReturnToRecipe = false
+                        destination = AppDestination.Recipes
+                    },
+                    returnToRecipe = ingredientReturnToRecipe,
+                    onIngredientCreated = { ingredient ->
+                        if (ingredientReturnToRecipe) {
+                            recipesViewModel.addCreatedIngredient(ingredient.id, ingredient.name)
+                            ingredientReturnToRecipe = false
+                            destination = AppDestination.Recipes
+                        }
+                    },
+                    viewModel = ingredientsViewModel,
+                )
                 else -> TrackingScreen(onRecipes = { destination = AppDestination.Recipes }, viewModel = trackingViewModel)
             }
         }
     }
 }
+
+internal fun shouldShowLogRationAction(
+    appDestination: String,
+    trackingDestination: TrackingDestination,
+) = appDestination == "Today" && trackingDestination != TrackingDestination.Log

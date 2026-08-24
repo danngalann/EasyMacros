@@ -101,3 +101,29 @@
       secret-scan gates
 - [ ] Restore drill, load/accessibility review, Android release journey, and documented
       performance/AI-concurrency measurements require a production-like environment
+
+## Skipped barcode and AI ingestion requirements
+
+- [x] Shared manual, Open Food Facts, and OpenRouter candidate contract with explicit,
+      exactly-once reviewed confirmation
+- [x] Server-side OFF v2 adapter with checksum normalization, minimal fields, attribution,
+      missing-versus-zero mapping, timeout/retry, coalescing, cache, and shared budget
+- [x] Durable multimodal job state, strict structured output, private validated uploads,
+      bounded retries/concurrency/quotas, recovery, cancellation, expiry, and cleanup
+- [x] Android ingredient management, creation chooser, CameraX/ML Kit scan, photo capture/
+      picker, process-restorable polling, shared review, and barcode-to-AI fallback
+- [x] Focused provider, validation, ownership/confirmation, and Android state tests
+- [ ] Real local OFF → AI → confirm → ingredient search → recipe journey requires valid
+      provider configuration and physical/emulated camera execution
+
+## Ingredient and recipe UX corrections
+
+- [x] Confirmation returns to ingredient search with visible success feedback
+- [x] Recipe creation uses the shared manual/barcode/AI chooser and resumes its draft
+- [x] Recipe weight is derived from component weights; no redundant yield input remains
+- [x] Log ration action is hidden while the log flow is active
+- [x] Candidate fields show required/optional status and field-relevant warnings
+- [x] AI ingestion accepts up to four jointly analyzed images
+- [x] Ingredient success feedback expires and is cleared when leaving the screen
+- [x] Recipe-origin creation Back returns directly to the preserved recipe
+- [x] Android system Back navigates subordinate/app destinations before activity exit

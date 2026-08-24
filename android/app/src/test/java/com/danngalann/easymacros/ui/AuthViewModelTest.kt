@@ -8,6 +8,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.flow.MutableSharedFlow
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -41,12 +42,30 @@ class AuthViewModelTest {
         runCurrent()
         assertEquals(AuthUiState(isRestoring = false, isAuthenticated = true), viewModel.state.value)
     }
+
+    @Test fun `returns to login when the server rejects the stored session`() = runTest {
+        val repository = FakeAuthRepository(restored = true)
+        val viewModel = AuthViewModel(repository)
+        runCurrent()
+
+        repository.invalidateSession()
+        runCurrent()
+
+        assertEquals(AuthUiState(isRestoring = false), viewModel.state.value)
+    }
 }
 
 private class FakeAuthRepository(
     private val restored: Boolean = false,
     private val loginResult: Result<Unit> = Result.success(Unit),
 ) : AuthRepository {
+    private val invalidations = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    override val sessionInvalidations = invalidations
+
+    fun invalidateSession() {
+        invalidations.tryEmit(Unit)
+    }
+
     override suspend fun restoreSession() = restored
     override suspend fun login(username: String, password: String) = loginResult
     override suspend fun register(username: String, password: String) = loginResult

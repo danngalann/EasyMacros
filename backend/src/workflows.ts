@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 
+import { Decimal } from "decimal.js";
+
 import type { QueryDatabase, Database } from "./database.js";
 import {
   calculateCalories,
@@ -12,7 +14,6 @@ export interface RecipeInput {
   components: Array<{ ingredientId: string; quantityGrams: string }>;
   name: string;
   notes?: string;
-  yieldGrams: string;
 }
 
 interface IngredientSnapshot {
@@ -81,7 +82,7 @@ export class NutritionWorkflowService {
     );
     return {
       name: input.name.trim(),
-      yieldGrams: input.yieldGrams,
+      yieldGrams: derivedRecipeYield(input),
       nutrients,
       calories: calculateCalories(nutrients),
     };
@@ -489,7 +490,7 @@ async function insertRecipeVersion(
       recipeId,
       versionNumber,
       input.name.trim(),
-      input.yieldGrams,
+      derivedRecipeYield(input),
       input.notes?.trim() || null,
     ],
   );
@@ -587,7 +588,6 @@ function validateRecipe(input: RecipeInput) {
   if (
     !input.name?.trim() ||
     input.name.trim().length > 200 ||
-    !positiveDecimal(input.yieldGrams) ||
     !Array.isArray(input.components) ||
     input.components.length === 0 ||
     input.components.some(
@@ -596,6 +596,13 @@ function validateRecipe(input: RecipeInput) {
   ) {
     throw new WorkflowError("invalid_recipe", 400);
   }
+}
+
+export function derivedRecipeYield(input: Pick<RecipeInput, "components">): string {
+  return input.components
+    .reduce((total, component) => total.plus(component.quantityGrams), new Decimal(0))
+    .toDecimalPlaces(6, Decimal.ROUND_HALF_UP)
+    .toFixed(6);
 }
 
 function positiveDecimal(value: string): boolean {

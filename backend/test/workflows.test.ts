@@ -1,8 +1,19 @@
 import { describe, expect, it } from "vitest";
 
-import { NutritionWorkflowService } from "../src/workflows.js";
+import { derivedRecipeYield, NutritionWorkflowService } from "../src/workflows.js";
 
 describe("recipe previews", () => {
+  it("derives final weight from all component grams with decimal-safe arithmetic", () => {
+    expect(
+      derivedRecipeYield({
+        components: [
+          { ingredientId: "one", quantityGrams: "100.1" },
+          { ingredientId: "two", quantityGrams: "50.2" },
+        ],
+      }),
+    ).toBe("150.300000");
+  });
+
   it("calculates owner-scoped ingredient totals without creating a recipe", async () => {
     const queries: string[] = [];
     const database = {
@@ -26,13 +37,12 @@ describe("recipe previews", () => {
 
     const preview = await service.previewRecipe("user-1", {
       name: "Rice bowl",
-      yieldGrams: "300",
       components: [{ ingredientId: "ingredient-1", quantityGrams: "150" }],
     });
 
     expect(preview).toEqual({
       name: "Rice bowl",
-      yieldGrams: "300",
+      yieldGrams: "150.000000",
       nutrients: [
         { code: "carbohydrates", amount: "120.000000" },
         { code: "protein", amount: "10.500000" },
@@ -55,7 +65,6 @@ describe("recipe updates", () => {
     await expect(
       service.updateRecipe("user-1", "recipe-1", {
         name: "Rice bowl",
-        yieldGrams: "300",
         expectedVersion: 1,
         components: [{ ingredientId: "ingredient-1", quantityGrams: "150" }],
       }),

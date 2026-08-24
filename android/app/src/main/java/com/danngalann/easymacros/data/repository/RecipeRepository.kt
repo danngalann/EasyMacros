@@ -43,7 +43,6 @@ data class IngredientDraft(
 data class RecipeDraft(
     val name: String,
     val notes: String,
-    val yieldGrams: String,
     val components: List<RecipeComponent>,
     val expectedVersion: Int? = null,
 )
@@ -85,7 +84,16 @@ class DefaultRecipeRepository @Inject constructor(
                 ),
             ),
         )
-        ingredientApi.confirmCandidate(candidate.id, ConfirmIngredientCandidateRequest(candidate.version))
+        ingredientApi.confirmCandidate(
+            candidate.id,
+            ConfirmIngredientCandidateRequest(
+                version = candidate.version,
+                name = candidate.suggestedName,
+                brand = candidate.brand,
+                barcode = candidate.barcode,
+                nutrients = candidate.nutrients.map { NutrientAmountResponse(it.code, it.amount) },
+            ),
+        )
             .let { IngredientSummary(it.id, it.name, it.hidden) }
     }
 
@@ -127,7 +135,6 @@ private fun RecipeDetailResponse.toDomain() = RecipeDetail(
 private fun RecipeDraft.toRequest() = RecipeRequest(
     name = name,
     notes = notes.takeIf { it.isNotBlank() },
-    yieldGrams = yieldGrams,
     components = components.map { com.danngalann.easymacros.data.api.RecipeComponentRequest(it.ingredientId, it.quantityGrams) },
     expectedVersion = expectedVersion,
 )

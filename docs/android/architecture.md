@@ -34,7 +34,11 @@ token is refreshed before the main shell is shown. Refresh requests are protecte
 coroutine `Mutex`, so concurrent callers do not rotate the opaque server token twice.
 An OkHttp interceptor adds the access token to protected calls. Its authenticator performs
 at most one refresh-and-retry after a `401`, using a separate unauthenticated Retrofit
-client so the refresh request cannot recurse through the authenticator.
+client so the refresh request cannot recurse through the authenticator. A rejected
+refresh clears the encrypted session and emits a process-local invalidation event;
+`AuthViewModel` collects that event and immediately replaces the authenticated graph
+with login. This also handles development database resets while the app process remains
+open.
 
 The API base URL is a `BuildConfig` value. The debug manifest permits cleartext HTTP for
 the local development API; release builds must provide a TLS endpoint before distribution.
@@ -62,21 +66,14 @@ request, prevents duplicate submissions, and asks `POST /recipes/preview` for di
 totals. Creating or updating then receives the persisted immutable version from the
 server; Android never calculates recipe nutrients itself.
 
-The recipe editor can also create a manual ingredient without discarding the recipe
-draft. `IngredientEditorState` retains the name, optional brand, and protein,
-carbohydrate, and fat values per 100 g through recomposition and configuration changes.
-After a local review step, `RecipeRepository` creates a manual nutrient candidate and
-confirms its returned version through the protected API. The confirmed user-owned
-ingredient is then added to the active recipe component list. Android does not bypass
-the backend's candidate confirmation or calculate ingredient nutrients.
-
-Recipes also links to a dedicated `IngredientsScreen` subflow for bulk library setup.
-`IngredientsViewModel` owns its search, list, loading, error, and reviewed editor state;
-after each successful confirmation it reloads the catalog so another ingredient can be
-entered immediately. The Recipes bottom-navigation destination remains selected while
-this subordinate screen is open, avoiding a cramped sixth primary destination. Logging
-consumption still uses immutable recipe/ration snapshots; an ingredient catalog record
-is not itself a logged ration.
+The recipe editor can open the shared `IngredientsScreen` without discarding its draft.
+`IngredientsViewModel` owns ingredient search, manual/barcode/AI creation, loading,
+errors, and reviewed candidate state. After confirmation, the user-owned ingredient is
+added to the active recipe component list and the editor resumes. Android does not
+bypass backend candidate confirmation or calculate ingredient nutrients. The Recipes
+bottom-navigation destination remains selected while this subordinate screen is open,
+avoiding a cramped sixth primary destination. Logging consumption still uses immutable
+recipe/ration snapshots; an ingredient catalog record is not itself a logged ration.
 
 Phase 9 replaces the dashboard-only authenticated view with `TrackingViewModel` and a
 coordinated dashboard, log-ration, goals, history, and settings workspace. The
@@ -99,3 +96,39 @@ dates and instants using the device locale; ViewModels and repositories continue
 ISO-8601 strings at API boundaries. Drafts, filters, selected dates, and dialogs remain
 in their Hilt ViewModels, so recomposition and configuration changes redraw rather than
 reset active flows.
+
+The Ingredients destination is now a complete management workspace: searchable visible
+or hidden lists, details, editing, visibility changes, and a creation-method chooser.
+`IngredientApi` is the only Android ingestion boundary. `DefaultIngredientRepository`
+maps wire candidates into domain models; `IngredientsViewModel` owns immutable list,
+scanner, image, processing, review, and detail states.
+
+CameraX binds preview and analysis to the lifecycle owner. ML Kit accepts UPC-A/EAN-13,
+while a checksum gate and duplicate-frame suppression prevent avoidable requests. Camera
+permission denial leaves manual entry available. Activity Result contracts provide
+camera capture and the system photo picker; images are resized and compressed before
+multipart upload.
+
+The candidate ID is stored in `SavedStateHandle`, so process recreation resumes polling.
+Polling and uploads run in `viewModelScope`, cancellation calls backend cleanup, and
+recomposition performs no network work. Manual, OFF, and AI candidates render through
+one review state with explicit confirmation. Barcode review always exposes image+AI
+fallback.
+
+Recipe-origin ingredient creation navigates to that same screen rather than opening a
+manual-only dialog. The activity-scoped Hilt `RecipesViewModel` retains the recipe draft;
+the confirmed ingredient ID/name is returned as an event, added to the draft, and
+navigation returns to the editor. Standalone confirmation returns to the ingredient list
+with success feedback that is cleared after three seconds or when the screen leaves
+composition. Back from the recipe-origin creation chooser returns directly to the
+preserved recipe rather than exposing the ingredient catalog first.
+
+The image draft is an immutable list of up to four compressed images. Camera capture
+appends one image and the system multi-photo picker appends the remaining slots, allowing
+front/back/nutrition-panel context in one multipart request. Candidate review labels
+required and optional fields and associates nutrient-specific warnings with their fields.
+The app shell observes `TrackingUiState`, so the Log ration FAB is absent while the log
+screen is already active. Compose `BackHandler`s map Android's system-back gesture to
+subordinate screen state first (ingredient creation, recipe editor/detail, and ration
+logging), then to the Today destination; the activity exits only from the top-level Today
+dashboard.

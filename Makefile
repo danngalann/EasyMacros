@@ -1,9 +1,9 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help setup dev-db-up dev-db-down backend-dev format format-check lint test test-backend test-android build openapi-check compose-prod-check migrate
+.PHONY: help setup dev-db-up dev-db-down dev-db-reset backend-dev format format-check lint test test-backend test-android build openapi-check compose-prod-check migrate
 
 help:
-	@printf '%s\n' 'Targets: setup dev-db-up dev-db-down backend-dev format format-check lint test test-backend test-android build openapi-check compose-prod-check'
+	@printf '%s\n' 'Targets: setup dev-db-up dev-db-down dev-db-reset backend-dev format format-check lint test test-backend test-android build openapi-check compose-prod-check migrate'
 
 setup:
 	pnpm install --frozen-lockfile
@@ -13,6 +13,12 @@ dev-db-up:
 
 dev-db-down:
 	docker compose -f docker-compose.dev.yml down
+
+dev-db-reset:
+	@printf '%s\n' 'WARNING: deleting all local EasyMacros development database data'
+	docker compose -f docker-compose.dev.yml down --volumes
+	docker compose -f docker-compose.dev.yml up -d --wait db
+	pnpm --filter backend migrate
 
 backend-dev:
 	pnpm --filter backend dev

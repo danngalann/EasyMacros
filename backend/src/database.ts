@@ -29,7 +29,7 @@ export function createDatabase(connectionString: string): Database {
       try {
         const result = await pool.query<{ ready: boolean }>(
           "SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE name = $1) AS ready",
-          ["0003_add_nutrition_domain.sql"],
+          ["0005_add_multi_image_ai.sql"],
         );
         return result.rows[0]?.ready === true;
       } catch {

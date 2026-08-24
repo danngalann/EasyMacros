@@ -206,3 +206,55 @@ cd android
 	--tests 'com.danngalann.easymacros.ui.RecipesViewModelTest' \
 	--tests 'com.danngalann.easymacros.ui.TrackingViewModelTest'
 ```
+
+## External ingredient candidates
+
+`IngredientCandidate` is an immutable Kotlin `data class`; nullable confidence and
+provider fields represent genuinely absent values. Repository `suspend` functions map
+Retrofit DTOs before Compose sees them. `IngredientsViewModel` hoists form and operation
+state into `StateFlow`; composables send events back, and recomposition only redraws.
+
+`viewModelScope` owns upload and poll coroutines. Configuration changes retain the
+ViewModel; `SavedStateHandle` also retains the candidate ID across process death so a new
+process reloads authoritative state. Cancellation stops client work and calls the backend
+`DELETE` cleanup endpoint.
+
+CameraX binds preview and `ImageAnalysis` to the lifecycle owner. KEEP_ONLY_LATEST
+backpressure avoids stale frames, ML Kit decodes UPC-A/EAN-13, and duplicate suppression
+prevents repeated submissions. Runtime permission uses an Activity Result contract;
+denial leaves manual entry available. The system photo picker needs no broad storage
+permission.
+
+Hilt supplies Retrofit and the repository. Data flows DTO → repository mapper →
+ViewModel `StateFlow` → composable. A useful scanner debugging check is that every image
+proxy closes after ML Kit completes; a leaked proxy freezes analysis. Focused tests prove
+shared manual review, duplicate/checksum handling, permission fallback, and candidate-ID
+process restoration.
+
+The shared recipe-to-ingredient flow demonstrates state ownership across navigation:
+`RecipesViewModel` owns the unfinished recipe, while `IngredientsViewModel` owns capture,
+provider polling, and review. Only the confirmed ingredient's small identity crosses
+back; images and DTOs do not. This is preferable to duplicating candidate logic inside
+the recipe editor and survives recomposition/configuration changes because both states
+remain in their ViewModels.
+
+Multiple photos use an immutable `List<IngredientImage>` updated with `+` and
+`filterIndexed`; Compose detects the new list and recomposes previews. Retrofit accepts a
+list of multipart `Part`s, while cancellation still propagates through the repository's
+`suspend` call. Tests prove two images are submitted together, confirmation returns to
+the list, the recipe draft accepts the returned ingredient, and the ration FAB visibility
+follows navigation state.
+
+Android back gestures do not automatically understand custom enum-based navigation.
+`BackHandler` must delegate to the same state transition as the visible header action.
+The ingredient screen owns nested creation back behavior, while the authenticated shell
+handles recipe/tracking and primary-destination behavior. A transient success message's
+`LaunchedEffect` timeout is cancelled when the composable leaves, so
+`DisposableEffect.onDispose` also clears it and prevents stale feedback from returning.
+
+A server-side session can disappear while the activity and `AuthViewModel` remain
+alive, such as after `make dev-db-reset`. Clearing DataStore alone does not recompose the
+root authentication graph. `RefreshCoordinator` therefore publishes a `SharedFlow`
+invalidation event, and `AuthViewModel` collects it in `viewModelScope`. The event changes
+immutable `AuthUiState`, Compose observes the `StateFlow`, and the login screen replaces
+the authenticated shell without restarting the process.

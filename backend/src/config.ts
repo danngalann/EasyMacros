@@ -11,6 +11,18 @@ export interface AppConfig {
   sessionIdleDays: number;
   sessionMaxAgeDays: number;
   trustedProxyHops: number;
+  openFoodFactsBaseUrl: string;
+  openFoodFactsEnabled: boolean;
+  openFoodFactsUserAgent?: string;
+  openFoodFactsCountry: string;
+  openFoodFactsLanguage: string;
+  openRouterApiKey?: string;
+  openRouterBaseUrl: string;
+  openRouterModel: string;
+  imageJobDirectory: string;
+  aiWorkerConcurrency: number;
+  aiRequestsPerHour: number;
+  aiMaxUploadBytes: number;
 }
 
 export function loadConfig(environment: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -55,6 +67,30 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): AppCon
     environment.TRUSTED_PROXY_HOPS ?? "0",
     "TRUSTED_PROXY_HOPS",
   );
+  const openFoodFactsBaseUrl =
+    environment.OPEN_FOOD_FACTS_BASE_URL ?? "https://world.openfoodfacts.org";
+  const openRouterBaseUrl = environment.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1";
+  for (const [name, value] of [
+    ["OPEN_FOOD_FACTS_BASE_URL", openFoodFactsBaseUrl],
+    ["OPENROUTER_BASE_URL", openRouterBaseUrl],
+  ] as const) {
+    try {
+      new URL(value);
+    } catch {
+      throw new Error(`${name} must be a valid URL`);
+    }
+  }
+  const openFoodFactsUserAgent = environment.OPEN_FOOD_FACTS_USER_AGENT;
+  if (
+    environment.OPEN_FOOD_FACTS_ENABLED === "true" &&
+    (!openFoodFactsUserAgent ||
+      !/^EasyMacros\/\S+ \([^@\s]+@[^)\s]+\)$/.test(openFoodFactsUserAgent) ||
+      openFoodFactsUserAgent.includes(".invalid"))
+  ) {
+    throw new Error(
+      "OPEN_FOOD_FACTS_USER_AGENT must identify EasyMacros and contain a real contact email",
+    );
+  }
 
   return {
     accessTokenTtlSeconds,
@@ -69,6 +105,27 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): AppCon
     sessionIdleDays,
     sessionMaxAgeDays,
     trustedProxyHops,
+    openFoodFactsBaseUrl,
+    openFoodFactsEnabled: environment.OPEN_FOOD_FACTS_ENABLED === "true",
+    openFoodFactsUserAgent,
+    openFoodFactsCountry: environment.OPEN_FOOD_FACTS_COUNTRY ?? "de",
+    openFoodFactsLanguage: environment.OPEN_FOOD_FACTS_LANGUAGE ?? "en",
+    openRouterApiKey: environment.OPENROUTER_API_KEY,
+    openRouterBaseUrl,
+    openRouterModel: environment.OPENROUTER_MODEL ?? "google/gemini-2.5-flash",
+    imageJobDirectory: environment.IMAGE_JOB_DIRECTORY ?? "/tmp/easymacros-images",
+    aiWorkerConcurrency: parsePositiveInteger(
+      environment.AI_WORKER_CONCURRENCY ?? "2",
+      "AI_WORKER_CONCURRENCY",
+    ),
+    aiRequestsPerHour: parsePositiveInteger(
+      environment.AI_REQUESTS_PER_HOUR ?? "10",
+      "AI_REQUESTS_PER_HOUR",
+    ),
+    aiMaxUploadBytes: parsePositiveInteger(
+      environment.AI_MAX_UPLOAD_BYTES ?? "8388608",
+      "AI_MAX_UPLOAD_BYTES",
+    ),
   };
 }
 

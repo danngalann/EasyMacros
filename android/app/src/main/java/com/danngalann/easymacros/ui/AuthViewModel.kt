@@ -9,6 +9,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 data class AuthUiState(val isRestoring: Boolean = true, val isAuthenticated: Boolean = false, val isLoading: Boolean = false, val error: String? = null)
@@ -18,7 +19,19 @@ class AuthViewModel @Inject constructor(private val repository: AuthRepository) 
     private val _state = MutableStateFlow(AuthUiState())
     val state: StateFlow<AuthUiState> = _state.asStateFlow()
 
-    init { viewModelScope.launch { _state.value = _state.value.copy(isRestoring = false, isAuthenticated = repository.restoreSession()) } }
+    init {
+        viewModelScope.launch {
+            repository.sessionInvalidations.collect {
+                _state.value = AuthUiState(isRestoring = false)
+            }
+        }
+        viewModelScope.launch {
+            _state.value = _state.value.copy(
+                isRestoring = false,
+                isAuthenticated = repository.restoreSession(),
+            )
+        }
+    }
 
     fun login(username: String, password: String) = authenticate { repository.login(username, password) }
     fun register(username: String, password: String) = authenticate { repository.register(username, password) }

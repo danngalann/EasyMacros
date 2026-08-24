@@ -83,8 +83,15 @@ session consequence. During an incident, preserve sanitized logs and database ba
 block compromised credentials, rotate affected secrets, and record the timeline and
 recovery verification.
 
-No AI provider is enabled in the current release, so its cost budget is zero. Before
-enabling one, set per-user/IP quotas and a global worker-concurrency cap, monitor provider
-usage and error rates, set a provider-side budget alert, and ensure prompts/images are not
-in normal logs. `docker-compose.dev.yml` remains development PostgreSQL only; run the API
-locally through `pnpm`, not through Compose.
+External ingestion is disabled until configured. For Open Food Facts, set
+`OPEN_FOOD_FACTS_ENABLED=true` and a real contact-bearing
+`OPEN_FOOD_FACTS_USER_AGENT`; review current OFF terms, attribution, and shared-IP limits.
+For AI, inject `OPENROUTER_API_KEY`, select `OPENROUTER_MODEL`, set a provider-side spend
+cap, and tune `AI_REQUESTS_PER_HOUR`, `AI_WORKER_CONCURRENCY`, and
+`AI_MAX_UPLOAD_BYTES`. Monitor aggregate status/latency/cost metadata only—never prompts,
+images, or provider responses.
+
+The image-job volume is temporary private data, not a backup target. Keep one API replica,
+restrict host access, and periodically verify that no files outlive candidate expiry.
+`docker-compose.dev.yml` remains development PostgreSQL only; run the API locally through
+`pnpm`, not through Compose.

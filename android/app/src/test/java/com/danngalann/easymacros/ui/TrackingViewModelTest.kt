@@ -32,6 +32,11 @@ class TrackingViewModelTest {
     @Before fun setUp() = Dispatchers.setMain(dispatcher)
     @After fun tearDown() = Dispatchers.resetMain()
 
+    @Test fun `log ration action is hidden inside the log flow`() {
+        assertEquals(true, shouldShowLogRationAction("Today", TrackingDestination.Dashboard))
+        assertEquals(false, shouldShowLogRationAction("Today", TrackingDestination.Log))
+    }
+
     @Test fun `loads dashboard and ration history for the selected day`() = runTest {
         val tracking = FakeTrackingRepository()
         val viewModel = TrackingViewModel(TrackingFakeDashboardRepository(), TrackingFakeRecipeRepository(), tracking)

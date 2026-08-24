@@ -45,3 +45,17 @@ without the exception message, SQL, or values. Retain reverse-proxy and applicat
 only for the period needed for operations and incident response, with restricted access.
 Follow the rotation and recovery instructions in [deployment.md](deployment.md) when a
 credential is suspected compromised.
+
+External ingestion keeps provider traffic server-side. Open Food Facts receives only the
+normalized barcode plus configured locale/country and the required operator-contact
+User-Agent. OpenRouter receives a validated image and optional description delimited as
+untrusted data. Tools are not enabled; output must match a strict local schema. Normal
+logs contain no images, prompts, provider bodies, API keys, authorization headers, or
+full barcodes.
+
+AI uploads are limited to four files, each bounded by encoded size, MIME/signature
+agreement, decoded dimensions, pixel count, and basic polyglot indicators. Files use random names in a mode-0700
+directory and are removed on every terminal path. PostgreSQL enforces per-user/IP hourly
+quotas; the worker has bounded global concurrency and attempts. Candidates and every
+mutation are owner-scoped in SQL. Reverse proxies must apply a matching request-body
+limit and must not expose the image-job volume.

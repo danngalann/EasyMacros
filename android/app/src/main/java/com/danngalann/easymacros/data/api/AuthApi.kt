@@ -6,6 +6,10 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Query
 import retrofit2.http.PUT
+import retrofit2.http.Multipart
+import retrofit2.http.Part
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 
 interface AuthApi {
     @POST("auth/login")
@@ -151,8 +155,52 @@ interface IngredientApi {
         @Query("hidden") hidden: Boolean,
     ): IngredientListResponse
 
+    @GET("ingredients/{ingredientId}")
+    suspend fun ingredient(
+        @retrofit2.http.Path("ingredientId") ingredientId: String,
+    ): IngredientDetailResponse
+
+    @retrofit2.http.PATCH("ingredients/{ingredientId}")
+    suspend fun updateIngredient(
+        @retrofit2.http.Path("ingredientId") ingredientId: String,
+        @Body request: UpdateIngredientRequest,
+    ): IngredientDetailResponse
+
+    @retrofit2.http.PATCH("ingredients/{ingredientId}/visibility")
+    suspend fun setIngredientVisibility(
+        @retrofit2.http.Path("ingredientId") ingredientId: String,
+        @Body request: IngredientVisibilityRequest,
+    ): IngredientDetailResponse
+
     @POST("ingredients/manual-candidates")
-    suspend fun createManualCandidate(@Body request: ManualIngredientRequest): ManualIngredientCandidateResponse
+    suspend fun createManualCandidate(@Body request: ManualIngredientRequest): IngredientCandidateResponse
+
+    @POST("ingredient-candidates/barcode")
+    suspend fun createBarcodeCandidate(@Body request: BarcodeCandidateRequest): IngredientCandidateResponse
+
+    @Multipart
+    @POST("ingredient-candidates/ai")
+    suspend fun createAiCandidate(
+        @Part images: List<MultipartBody.Part>,
+        @Part("description") description: RequestBody?,
+        @Part("mode") mode: RequestBody,
+        @Part("idempotencyKey") idempotencyKey: RequestBody,
+    ): IngredientCandidateResponse
+
+    @GET("ingredient-candidates/{candidateId}")
+    suspend fun candidate(
+        @retrofit2.http.Path("candidateId") candidateId: String,
+    ): IngredientCandidateResponse
+
+    @POST("ingredient-candidates/{candidateId}/retry")
+    suspend fun retryCandidate(
+        @retrofit2.http.Path("candidateId") candidateId: String,
+    ): IngredientCandidateResponse
+
+    @DELETE("ingredient-candidates/{candidateId}")
+    suspend fun cancelCandidate(
+        @retrofit2.http.Path("candidateId") candidateId: String,
+    )
 
     @POST("ingredient-candidates/{candidateId}/confirm")
     suspend fun confirmCandidate(
@@ -194,7 +242,6 @@ data class RecipePreviewResponse(
 data class RecipeRequest(
     val name: String,
     val notes: String?,
-    val yieldGrams: String,
     val components: List<RecipeComponentRequest>,
     val expectedVersion: Int? = null,
 )
@@ -206,19 +253,50 @@ data class ManualIngredientRequest(
     val brand: String?,
     val nutrients: List<NutrientAmountResponse>,
 )
-data class ManualIngredientCandidateResponse(
+data class IngredientCandidateResponse(
     val id: String,
+    val version: String,
+    val status: String,
+    val source: String,
+    val suggestedName: String,
+    val brand: String?,
+    val barcode: String?,
+    val basisQuantity: Int,
+    val nutrients: List<CandidateNutrientResponse>,
+    val confidence: String?,
+    val warnings: List<String>,
+    val provenance: Map<String, Any?>,
+    val expiresAt: String,
+    val errorCode: String? = null,
+)
+data class CandidateNutrientResponse(
+    val code: String,
+    val displayName: String? = null,
+    val amount: String,
+    val unit: String? = null,
+    val derived: Boolean = false,
+)
+data class BarcodeCandidateRequest(val barcode: String)
+data class ConfirmIngredientCandidateRequest(
     val version: String,
     val name: String,
     val brand: String?,
+    val barcode: String?,
     val nutrients: List<NutrientAmountResponse>,
-    val status: String,
 )
-data class ConfirmIngredientCandidateRequest(val version: String)
+data class UpdateIngredientRequest(val name: String? = null, val brand: String? = null)
+data class IngredientVisibilityRequest(val hidden: Boolean)
 data class IngredientDetailResponse(
     val id: String,
     val name: String,
+    val brand: String? = null,
+    val barcode: String? = null,
     val hidden: Boolean,
+    val source: String = "manual",
+    val confidence: String? = null,
+    val warnings: List<String> = emptyList(),
+    val provenance: Map<String, Any?> = emptyMap(),
+    val nutrients: List<NutrientAmountResponse> = emptyList(),
 )
 
 sealed class ApiException : Exception() {

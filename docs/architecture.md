@@ -36,3 +36,10 @@ the database network is internal and the API is locally bound for a separate TLS
 proxy. Startup runs migrations before listening, and SIGINT/SIGTERM close Fastify and the
 PostgreSQL pool. The v1 API must remain a single replica because its temporary image-job
 volume is local rather than shared.
+
+External ingredient ingestion is isolated behind provider adapters. The Open Food Facts
+adapter is synchronous, cached, coalesced, and process-budgeted. OpenRouter analysis uses
+PostgreSQL-backed jobs and a bounded in-process worker; expired leases are recovered at
+startup. One to four images are validated before being written to random private paths and removed
+after completion, terminal failure, cancellation, or expiry. All three creation sources
+converge on `nutrient_candidates` and the same owner-scoped confirmation transaction.

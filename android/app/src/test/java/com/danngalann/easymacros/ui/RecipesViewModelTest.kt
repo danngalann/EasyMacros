@@ -39,7 +39,7 @@ class RecipesViewModelTest {
 
         viewModel.createRecipe()
         runCurrent()
-        viewModel.updateEditor(name = "Rice bowl", yieldGrams = "300")
+        viewModel.updateEditor(name = "Rice bowl")
         viewModel.addIngredient(IngredientSummary("ingredient-1", "Rice", false))
         viewModel.updateComponentQuantity("ingredient-1", "150")
         viewModel.preview()
@@ -57,7 +57,7 @@ class RecipesViewModelTest {
         runCurrent()
 
         viewModel.preview()
-        assertEquals("Add a name, positive yield, and positive grams for every ingredient.", viewModel.state.value.editor?.error)
+        assertEquals("Add a name and positive grams for every ingredient.", viewModel.state.value.editor?.error)
 
         viewModel.updateEditor(showHiddenIngredients = true)
         runCurrent()
@@ -71,7 +71,7 @@ class RecipesViewModelTest {
         runCurrent()
         viewModel.createRecipe()
         runCurrent()
-        viewModel.updateEditor(name = "Rice bowl", yieldGrams = "300")
+        viewModel.updateEditor(name = "Rice bowl")
         viewModel.addIngredient(IngredientSummary("ingredient-1", "Rice", false))
         viewModel.updateComponentQuantity("ingredient-1", "150")
 
@@ -93,24 +93,15 @@ class RecipesViewModelTest {
         assertEquals("Unable to load recipes right now. Try again.", viewModel.state.value.error)
     }
 
-    @Test fun `reviews and confirms a manual ingredient into the recipe draft`() = runTest {
+    @Test fun `adds an ingredient returned by the shared creation flow`() = runTest {
         val repository = FakeRecipeRepository()
         val viewModel = RecipesViewModel(repository)
         runCurrent()
         viewModel.createRecipe()
         runCurrent()
 
-        viewModel.openIngredientEditor()
-        viewModel.updateIngredientEditor(name = "Greek yogurt", protein = "10", carbohydrates = "4", fat = "0")
-        viewModel.reviewIngredient()
-
-        assertEquals(true, viewModel.state.value.editor?.ingredientEditor?.isReviewing)
-        viewModel.confirmIngredient()
-        runCurrent()
-
-        assertEquals("Greek yogurt", repository.createdIngredientDraft?.name)
+        viewModel.addCreatedIngredient("ingredient-created", "Greek yogurt")
         assertEquals("ingredient-created", viewModel.state.value.editor?.components?.single()?.ingredientId)
-        assertEquals(null, viewModel.state.value.editor?.ingredientEditor)
     }
 
     @Test fun `ingredient list failure never reports a recipe save error`() = runTest {

@@ -76,6 +76,39 @@ creates exactly one user-owned ingredient. Ingredients have no deletion endpoint
 visibility controls whether they appear in the default list while preserving details
 and historical snapshots.
 
+External ingestion adds:
+
+```http
+POST   /ingredient-candidates/barcode
+POST   /ingredient-candidates/ai
+GET    /ingredient-candidates/{candidateId}
+POST   /ingredient-candidates/{candidateId}/retry
+DELETE /ingredient-candidates/{candidateId}
+```
+
+Barcode creation accepts `{ "barcode": "..." }`. The server validates UPC-A/EAN-13,
+queries Open Food Facts, and returns a shared candidate. Not-found, throttled, malformed,
+and unavailable outcomes remain candidates with safe error codes so the app can retain
+the barcode and offer AI/manual fallback. Incomplete products remain editable and keep
+missing nutrients absent rather than converting them to zero.
+
+AI creation is multipart with one to four repeated `images` parts, optional
+`description`, `mode` (`auto`, `label`, or `generic`), and an idempotency key. Front,
+back, and nutrition-panel images are analyzed together. It returns `202`; clients poll the
+candidate until `ready` or `failed`, may retry within the bounded attempt count, and
+cancel with `DELETE`. Candidate responses share `source`, editable identity and
+nutrients, confidence, warnings, provenance, version, and expiry.
+
+Confirmation now requires the complete reviewed `{version,name,brand,barcode,nutrients}`
+body. The server persists those reviewed values together with source, confidence,
+warnings, and provider provenance exactly once. Provider payloads never create an
+ingredient automatically. The generated contract is committed at
+`backend/openapi.json`.
+
+Recipe create, update, and preview requests no longer accept `yieldGrams`. The backend
+derives and snapshots final recipe weight as the decimal-safe sum of component
+`quantityGrams`; responses continue returning `yieldGrams` for ration scaling and display.
+
 ## Nutrition workflows
 
 Phase 5 adds authenticated recipe, ration, goal, dashboard, and recipe-search endpoints:

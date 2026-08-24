@@ -43,13 +43,14 @@ import com.danngalann.easymacros.data.repository.RecipeDetail
 @Composable
 fun RecipesScreen(
     onIngredients: () -> Unit,
+    onCreateIngredient: () -> Unit,
     viewModel: RecipesViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val editor = state.editor
     val detail = state.detail
     when {
-        editor != null -> RecipeEditor(editor, viewModel)
+        editor != null -> RecipeEditor(editor, viewModel, onCreateIngredient)
         detail != null -> RecipeDetailContent(detail, viewModel)
         else -> RecipeList(state, viewModel, onIngredients)
     }
@@ -60,15 +61,6 @@ fun RecipesScreen(
             text = { Text("It will no longer be available for new rations. Existing logged rations keep their original nutrition.") },
             confirmButton = { Button(onClick = viewModel::deleteRecipe) { Text("Delete recipe") } },
             dismissButton = { TextButton(onClick = viewModel::dismissDelete) { Text("Keep it") } },
-        )
-    }
-    editor?.ingredientEditor?.let { ingredient ->
-        IngredientEditorDialog(
-            state = ingredient,
-            onUpdate = viewModel::updateIngredientEditor,
-            onReview = viewModel::reviewIngredient,
-            onConfirm = viewModel::confirmIngredient,
-            onDismiss = viewModel::closeIngredientEditor,
         )
     }
 }
@@ -179,7 +171,11 @@ private fun RecipeDetailContent(recipe: RecipeDetail, viewModel: RecipesViewMode
 }
 
 @Composable
-private fun RecipeEditor(editor: RecipeEditorState, viewModel: RecipesViewModel) {
+private fun RecipeEditor(
+    editor: RecipeEditorState,
+    viewModel: RecipesViewModel,
+    onCreateIngredient: () -> Unit,
+) {
     LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = ScreenPadding, verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -195,7 +191,7 @@ private fun RecipeEditor(editor: RecipeEditorState, viewModel: RecipesViewModel)
             SectionCard {
                 Text("Recipe details", style = MaterialTheme.typography.titleLarge)
                 OutlinedTextField(editor.name, { viewModel.updateEditor(name = it) }, label = { Text("Recipe name") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !editor.isSubmitting)
-                OutlinedTextField(editor.yieldGrams, { viewModel.updateEditor(yieldGrams = it) }, label = { Text("Final prepared yield") }, suffix = { Text("g") }, supportingText = { Text("Weigh the full cooked or prepared batch") }, singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !editor.isSubmitting)
+                Text("Final weight is calculated from the ingredient amounts.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedTextField(editor.notes, { viewModel.updateEditor(notes = it) }, label = { Text("Notes") }, supportingText = { Text("Optional") }, modifier = Modifier.fillMaxWidth(), enabled = !editor.isSubmitting)
             }
         }
@@ -214,7 +210,7 @@ private fun RecipeEditor(editor: RecipeEditorState, viewModel: RecipesViewModel)
             SectionCard {
                 Text("Add an ingredient", style = MaterialTheme.typography.titleMedium)
                 Text("Search your ingredients or create one from its nutrition label.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Button(onClick = viewModel::openIngredientEditor, modifier = Modifier.fillMaxWidth(), enabled = !editor.isSubmitting) {
+                Button(onClick = onCreateIngredient, modifier = Modifier.fillMaxWidth(), enabled = !editor.isSubmitting) {
                     Icon(Icons.Default.Add, contentDescription = null)
                     Text(" Create ingredient")
                 }

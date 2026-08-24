@@ -20,8 +20,18 @@ confirmed per-100-g nutrient values. Ingredients are never deleted; `hidden` rem
 them from default selection while preserving history. Manual nutrient candidates are
 user-owned and can be confirmed exactly once into an ingredient.
 
+Candidates now have `manual`, `barcode`, or `ai` source and durable
+`pending/processing/ready/failed/cancelled/expired/confirmed` state. They preserve
+confidence, warnings, barcode, attribution provenance, an optimistic version, and a
+24-hour expiry. AI candidates have a durable ingestion job containing only private
+temporary-path metadata, bounded attempts, and a lease. Successful confirmation stores
+the reviewed values—not a hidden provider copy—in the ingredient and immutable revision.
+Ingredients retain source, confidence, warnings, and provenance for later attribution.
+
 Recipes have stable identities and immutable versions. Each version snapshots its
 components, ingredient names/nutrients, batch yield, and calculated nutrient totals.
+Batch yield is derived when the version is created as the exact sum of its component
+gram quantities; it is not independently entered by the user.
 Deleting a recipe is a soft delete that prevents new rations without changing old
 snapshots. Rations snapshot a version's name, yield, nutrients, consumed UTC instant,
 and immutable local date derived in the user's IANA timezone. Goals are versioned by

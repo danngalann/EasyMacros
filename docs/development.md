@@ -74,9 +74,20 @@ procedures. Do not use `docker-compose.prod.yml` as a development substitute.
 ## Development database
 
 The development Compose file intentionally contains PostgreSQL only. Stop it with
-`make dev-db-down`. Removing the named volume is destructive and must be an explicit
-operator action; no reset target exists yet. Apply outstanding SQL migrations with
-`make migrate`; applied migration names are recorded in `schema_migrations`.
+`make dev-db-down`. To delete every local user, session, ingredient, candidate, recipe,
+ration, and goal, recreate the PostgreSQL volume, wait for health, and reapply all
+migrations:
+
+```sh
+make dev-db-reset
+```
+
+This target is intentionally destructive and is scoped to `docker-compose.dev.yml`; do
+not use it for production. Android may still hold the old encrypted access/refresh
+tokens, but the server-side refresh session no longer exists. The next authenticated
+request/refresh fails with `401`, and the app clears its local session and returns to
+login. Apply only outstanding migrations without deleting data with `make migrate`;
+applied migration names are recorded in `schema_migrations`.
 
 The bare-metal backend still uses PostgreSQL from `docker-compose.dev.yml` through its
 loopback port. A healthy container does not imply a current schema. If `/recipes`,
@@ -106,3 +117,25 @@ disabled after bootstrap unless deliberately opening a short, supervised registr
 window. For a deployment behind a reverse proxy, set `TRUSTED_PROXY_HOPS` to the
 number of directly trusted hops; leave it at `0` for direct connections. Set
 `PUBLIC_AUTH_RATE_LIMIT_MAX` to tune the per-minute public authentication limit.
+
+## External ingredient ingestion
+
+OFF and OpenRouter are optional in development. Copy `.env.example`, replace the OFF
+placeholder with an operator-controlled contact address, then enable it:
+
+```sh
+OPEN_FOOD_FACTS_ENABLED=true
+OPEN_FOOD_FACTS_USER_AGENT='EasyMacros/0.1.0 (operator@example.com)'
+```
+
+Set `OPENROUTER_API_KEY` only in the ignored local `.env`; never put it in Gradle,
+source, screenshots, or shell history. Synthetic tests mock both providers:
+
+```sh
+pnpm --filter @easymacros/backend test -- ingredient-ingestion.test.ts ingredients.test.ts
+cd android
+./gradlew :app:testDebugUnitTest --tests 'com.danngalann.easymacros.ui.IngredientsViewModelTest'
+```
+
+Apply `0004_add_external_ingredient_candidates.sql` before exercising the Android flow.
+The committed API contract is `backend/openapi.json`.

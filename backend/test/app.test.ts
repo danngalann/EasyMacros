@@ -79,6 +79,11 @@ describe("health endpoint", () => {
     expect(paths).toHaveProperty("/goals");
     expect(paths).toHaveProperty("/dashboard");
     expect(paths).toHaveProperty("/me/timezone");
+    expect(paths).toHaveProperty("/ingredient-candidates/barcode");
+    expect(paths).toHaveProperty("/ingredient-candidates/ai");
+    expect(paths).toHaveProperty("/ingredient-candidates/{candidateId}");
+    expect(paths).toHaveProperty("/ingredient-candidates/{candidateId}/retry");
+    expect(paths).toHaveProperty("/ingredient-candidates/{candidateId}/confirm");
   });
 
   it("does not expose unexpected exception details", async () => {
