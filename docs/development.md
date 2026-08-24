@@ -27,8 +27,9 @@ make backend-dev
 The generated local `.env` binds the API to `0.0.0.0:3000`, allowing a device on the
 trusted LAN to reach `http://<development-machine-LAN-IP>:3000`. The PostgreSQL port
 remains bound only to `127.0.0.1`. Stop the API when LAN access is no longer needed.
-The Android debug manifest permits cleartext HTTP solely for this local-device workflow;
-release builds require an HTTPS API endpoint.
+The Android manifest permits cleartext HTTP in debug and release builds. Release HTTP is
+intended only for an API address restricted to an encrypted VPN; Android does not verify
+that restriction.
 
 Android debug failures use the `EasyMacrosNetwork` Logcat tag. Entries contain only the
 method, host, path, and, for HTTP failures, status code. If Android Studio Live Edit

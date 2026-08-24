@@ -28,6 +28,7 @@ backend/.env.*
 android/local.properties
 android/.gradle/
 android/app/build/
+android/app/release/
 android/build/
 *.apk
 *.aab

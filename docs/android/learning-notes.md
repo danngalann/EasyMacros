@@ -42,11 +42,11 @@ It deliberately excludes request bodies, headers, and query values, so a request
 traced without exposing credentials, tokens, or opaque cursors. The focused JVM test
 proves the message redacts a query value.
 
-The debug source set has its own manifest overlay with `usesCleartextTraffic="true"` for
-the trusted-LAN development API. Manifest overlays are selected by build variant, so this
-does not relax the release network-security policy; a distributed build still requires
-HTTPS. The merged debug manifest is a useful troubleshooting check when Logcat reports
-that cleartext communication is not permitted.
+The main manifest sets `usesCleartextTraffic="true"`, so both debug and release variants
+can call an HTTP API. This Android flag permits transport; it does not verify that a VPN
+is connected or encrypt traffic itself. The deployment must make the API address
+unreachable outside the encrypted VPN, or use HTTPS. Inspecting each merged manifest is a
+useful troubleshooting check when variant behavior differs.
 
 `android.permission.INTERNET` is a normal manifest permission, so Android grants it when
 the app is installed and does not show a runtime prompt. Without it, socket creation can

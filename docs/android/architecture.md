@@ -40,11 +40,13 @@ refresh clears the encrypted session and emits a process-local invalidation even
 with login. This also handles development database resets while the app process remains
 open.
 
-The API base URL is a `BuildConfig` value. The debug manifest permits cleartext HTTP for
-the local development API; release builds must provide a TLS endpoint before distribution.
-In debug builds, `EasyMacrosNetwork` logs an `IOException` with only the request method,
-host, and path so connectivity errors are diagnosable in Logcat. Network bodies, query
-values, headers, and bearer tokens are never logged.
+The API base URL is a `BuildConfig` value. The main manifest permits cleartext HTTP in
+debug and release builds for deployments whose API is reachable exclusively through an
+encrypted VPN. Android cannot enforce that routing boundary, so operators must bind and
+firewall the API to the VPN network or use HTTPS. In debug builds, `EasyMacrosNetwork`
+logs an `IOException` with only the request method, host, and path so connectivity errors
+are diagnosable in Logcat. Network bodies, query values, headers, and bearer tokens are
+never logged.
 
 The base manifest declares `INTERNET` for Retrofit requests. The authentication password
 field uses `KeyboardType.Password`, which signals the input method to suppress normal

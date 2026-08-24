@@ -9,7 +9,8 @@
         android:allowBackup="false"
         android:label="EasyMacros"
         android:supportsRtl="true"
-        android:theme="@style/Theme.EasyMacros">
+        android:theme="@style/Theme.EasyMacros"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true">

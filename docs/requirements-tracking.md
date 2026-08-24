@@ -127,3 +127,4 @@
 - [x] Ingredient success feedback expires and is cleared when leaving the screen
 - [x] Recipe-origin creation Back returns directly to the preserved recipe
 - [x] Android system Back navigates subordinate/app destinations before activity exit
+- [x] Release builds permit HTTP for an operator-enforced VPN-only API boundary

@@ -34,8 +34,11 @@ client IP's per-minute cap independently for registration, login, and refresh.
 Production secrets are injected through an operator-controlled Compose env file outside
 the repository. Never place it in an image, command line, CI log, or issue. The API logs
 neither HTTP bodies nor tokens. Android release builds do not install transport logging;
-they also do not opt into cleartext traffic. The debug manifest alone permits cleartext
-for a trusted-LAN development API. Debug builds log failed transport requests using only
+the main manifest permits cleartext HTTP for VPN-only deployments. Cleartext HTTP does
+not provide transport encryption itself: bearer tokens, ingredient data, and images are
+protected only by the VPN tunnel. Operators must bind/firewall the API so it is
+unreachable from public and non-VPN networks; otherwise they must use HTTPS. Android
+cannot enforce or attest that VPN routing boundary. Debug builds log failed transport requests using only
 the method, host, path, and non-success HTTP status, never query values, bodies, headers,
 or tokens. Configured backend runtime instances disable Fastify's raw request logging and
 emit only the request ID, method, route template, and status for rejected or failed

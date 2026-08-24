@@ -36,9 +36,16 @@ ingestion jobs. Do not scale `api` above one replica in v1: local temporary imag
 is not shared between replicas, and every API process would also race to run startup
 migrations.
 
-## Reverse proxy and TLS
+## VPN-only HTTP or reverse-proxy TLS
 
-Terminate TLS at a maintained reverse proxy and forward only to
+Android release builds permit HTTP for private VPN deployments. For this mode, expose the
+API only on the VPN interface or through a VPN-restricted proxy, firewall the port from
+public and ordinary LAN interfaces, and use an address whose route exists only inside the
+encrypted tunnel. The app does not detect VPN loss and cannot prevent an incorrectly
+routed HTTP address from exposing bearer tokens and user data.
+
+For any endpoint reachable outside that enforced VPN boundary, terminate TLS at a
+maintained reverse proxy and forward only to
 `http://127.0.0.1:3000`. Set `TRUSTED_PROXY_HOPS=1` only when that proxy is the one
 directly trusted hop; use a higher value only after verifying the actual topology.
 The proxy must enforce request-size limits, preserve `X-Forwarded-For` only from trusted
