@@ -1,9 +1,9 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help setup dev-db-up dev-db-down dev-db-reset backend-dev format format-check lint test test-backend test-android build openapi-check compose-prod-check migrate
+.PHONY: help setup dev-db-up dev-db-down dev-db-reset backend-dev backend-prod format format-check lint test test-backend test-android build openapi-check compose-prod-check migrate
 
 help:
-	@printf '%s\n' 'Targets: setup dev-db-up dev-db-down dev-db-reset backend-dev format format-check lint test test-backend test-android build openapi-check compose-prod-check migrate'
+	@printf '%s\n' 'Targets: setup dev-db-up dev-db-down dev-db-reset backend-dev backend-prod format format-check lint test test-backend test-android build openapi-check compose-prod-check migrate'
 
 setup:
 	pnpm install --frozen-lockfile
@@ -22,6 +22,10 @@ dev-db-reset:
 
 backend-dev:
 	pnpm --filter backend dev
+
+backend-prod:
+	@test -f .env || { printf '%s\n' 'Missing root .env file'; exit 1; }
+	docker compose --env-file .env -f docker-compose.prod.yml up -d --build api
 
 format:
 	pnpm format

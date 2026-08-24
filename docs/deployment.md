@@ -5,27 +5,32 @@
 
 Production uses [docker-compose.prod.yml](../docker-compose.prod.yml), which contains
 only the API and PostgreSQL. The database has no host port and is on an internal Docker
-network. The API is bound to `127.0.0.1` by default; place a TLS-terminating reverse
-proxy on the same host in front of it.
+network. The API container is named `easymacros` and joins the external Docker network
+named `proxy`, while PostgreSQL remains isolated from it. The API also retains its
+loopback-only host port for local readiness and administration.
 
 ## Initial deployment
 
-1. Create a production environment file outside version control with distinct
-   `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `JWT_SECRET` values. Generate
-   the JWT value with `openssl rand -base64 32`.
-2. Review the rendered configuration without printing secrets:
+1. Create the external network expected by the reverse proxy if it does not already
+   exist:
 
 ```sh
-set -a
-. /secure/path/easymacros.env
-set +a
-docker compose --env-file /secure/path/easymacros.env -f docker-compose.prod.yml config >/dev/null
+docker network create proxy
 ```
 
-3. Start the service from a clean checkout:
+2. Create a root `.env` file outside version control with distinct
+   `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `JWT_SECRET` values. Generate
+   the JWT value with `openssl rand -base64 32`.
+3. Review the rendered configuration without printing secrets:
 
 ```sh
-docker compose --env-file /secure/path/easymacros.env -f docker-compose.prod.yml up -d --build
+docker compose --env-file .env -f docker-compose.prod.yml config --quiet
+```
+
+4. Build and start the backend and its PostgreSQL dependency from a clean checkout:
+
+```sh
+make backend-prod
 curl --fail http://127.0.0.1:3000/v1/health/ready
 ```
 
@@ -45,8 +50,8 @@ encrypted tunnel. The app does not detect VPN loss and cannot prevent an incorre
 routed HTTP address from exposing bearer tokens and user data.
 
 For any endpoint reachable outside that enforced VPN boundary, terminate TLS at a
-maintained reverse proxy and forward only to
-`http://127.0.0.1:3000`. Set `TRUSTED_PROXY_HOPS=1` only when that proxy is the one
+maintained reverse proxy attached to the external `proxy` network and forward to
+`http://easymacros:3000`. Set `TRUSTED_PROXY_HOPS=1` only when that proxy is the one
 directly trusted hop; use a higher value only after verifying the actual topology.
 The proxy must enforce request-size limits, preserve `X-Forwarded-For` only from trusted
 peers, redirect HTTP to HTTPS, and retain access/error logs according to the operator's
@@ -57,18 +62,20 @@ retention policy. Never expose PostgreSQL or the API's plain HTTP port publicly.
 Back up before every upgrade and test restoration periodically:
 
 ```sh
-docker compose --env-file /secure/path/easymacros.env -f docker-compose.prod.yml exec -T db \
-	pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom > easymacros-$(date +%F).dump
+docker compose --env-file .env -f docker-compose.prod.yml exec -T db \
+	sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom' \
+	> easymacros-$(date +%F).dump
 ```
 
 To restore into a stopped, empty replacement database, start only `db`, copy the dump
 to a controlled location, then run:
 
 ```sh
-docker compose --env-file /secure/path/easymacros.env -f docker-compose.prod.yml up -d db
-docker compose --env-file /secure/path/easymacros.env -f docker-compose.prod.yml exec -T db \
-	pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists < easymacros-YYYY-MM-DD.dump
-docker compose --env-file /secure/path/easymacros.env -f docker-compose.prod.yml up -d --build api
+docker compose --env-file .env -f docker-compose.prod.yml up -d db
+docker compose --env-file .env -f docker-compose.prod.yml exec -T db \
+	sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists' \
+	< easymacros-YYYY-MM-DD.dump
+make backend-prod
 curl --fail http://127.0.0.1:3000/v1/health/ready
 ```
 

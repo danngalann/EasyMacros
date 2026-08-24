@@ -71,6 +71,8 @@ JWT_SECRET=ci-secret-that-is-at-least-thirty-two-bytes make compose-prod-check
 
 See [deployment.md](deployment.md) for production startup, backup, restore, and upgrade
 procedures. Do not use `docker-compose.prod.yml` as a development substitute.
+On a production host with a root `.env` and the external `proxy` Docker network,
+`make backend-prod` builds and starts the `easymacros` API container plus PostgreSQL.
 
 ## Development database
 

@@ -25,6 +25,7 @@ services:
           memory: 256M
 
   api:
+    container_name: easymacros
     build:
       context: .
       dockerfile: Dockerfile
@@ -60,6 +61,7 @@ services:
     read_only: true
     networks:
       - database
+      - proxy
     depends_on:
       db:
         condition: service_healthy
@@ -87,6 +89,9 @@ services:
 networks:
   database:
     internal: true
+  proxy:
+    external: true
+    name: proxy
 
 volumes:
   easymacros-production-postgres:
