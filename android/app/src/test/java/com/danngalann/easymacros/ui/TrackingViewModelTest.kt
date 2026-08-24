@@ -74,11 +74,44 @@ class TrackingViewModelTest {
         assertEquals("Europe/Berlin", viewModel.state.value.timezone)
         assertEquals(0, tracking.timezoneUpdates)
     }
+
+    @Test fun `goals screen hydrates current values and preserves active edits`() = runTest {
+        val viewModel = TrackingViewModel(
+            TrackingFakeDashboardRepository(),
+            TrackingFakeRecipeRepository(),
+            FakeTrackingRepository(),
+        )
+        runCurrent()
+
+        viewModel.navigate(TrackingDestination.Goals)
+
+        assertEquals("120", viewModel.state.value.goalEditor.protein)
+        assertEquals("250", viewModel.state.value.goalEditor.carbohydrates)
+        assertEquals("70", viewModel.state.value.goalEditor.fat)
+
+        viewModel.updateGoal(protein = "130")
+        viewModel.navigate(TrackingDestination.Dashboard)
+        viewModel.navigate(TrackingDestination.Goals)
+
+        assertEquals("130", viewModel.state.value.goalEditor.protein)
+    }
 }
 
 private class TrackingFakeDashboardRepository : DashboardRepository {
     override suspend fun dashboard(date: String) = Result.success(
-        DailyDashboard(date, listOf(NutrientAmount("protein", "21")), "480", Goal(date, emptyList())),
+        DailyDashboard(
+            date,
+            listOf(NutrientAmount("protein", "21")),
+            "480",
+            Goal(
+                date,
+                listOf(
+                    NutrientAmount("protein", "120.000000"),
+                    NutrientAmount("carbohydrates", "250.000000"),
+                    NutrientAmount("fat", "70.000000"),
+                ),
+            ),
+        ),
     )
 }
 

@@ -45,6 +45,7 @@ data class GoalEditorState(
     val protein: String = "",
     val carbohydrates: String = "",
     val fat: String = "",
+    val isDirty: Boolean = false,
     val isSubmitting: Boolean = false,
     val error: String? = null,
 )
@@ -85,7 +86,15 @@ class TrackingViewModel @Inject constructor(
     init { refreshDashboard() }
 
     fun navigate(destination: TrackingDestination) {
-        _state.value = _state.value.copy(destination = destination)
+        val current = _state.value
+        _state.value = current.copy(
+            destination = destination,
+            goalEditor = if (destination == TrackingDestination.Goals && !current.goalEditor.isDirty) {
+                current.dashboard?.goal.toEditor(current.date)
+            } else {
+                current.goalEditor
+            },
+        )
         if (destination == TrackingDestination.History && _state.value.history.isEmpty()) loadHistory()
     }
 
@@ -157,6 +166,7 @@ class TrackingViewModel @Inject constructor(
             protein = protein ?: editor.protein,
             carbohydrates = carbohydrates ?: editor.carbohydrates,
             fat = fat ?: editor.fat,
+            isDirty = true,
             error = null,
         ))
     }
@@ -173,7 +183,7 @@ class TrackingViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(goalEditor = editor.copy(isSubmitting = true, error = null))
             trackingRepository.setGoal(editor.effectiveDate, nutrients).onSuccess { goal ->
-                _state.value = _state.value.copy(goalEditor = GoalEditorState(effectiveDate = goal.effectiveLocalDate))
+                _state.value = _state.value.copy(goalEditor = goal.toEditor(_state.value.date))
                 refreshDashboard()
             }.onFailure { error ->
                 _state.value = _state.value.copy(goalEditor = _state.value.goalEditor.copy(isSubmitting = false, error = error.userMessage()))
@@ -227,7 +237,19 @@ class TrackingViewModel @Inject constructor(
     private fun loadDashboard(date: LocalDate) = viewModelScope.launch {
         _state.value = _state.value.copy(date = date, isLoadingDashboard = true, dashboardError = null)
         dashboardRepository.dashboard(date.toString()).onSuccess { dashboard ->
-            _state.value = _state.value.copy(dashboard = dashboard, isLoadingDashboard = false)
+            val current = _state.value
+            _state.value = current.copy(
+                dashboard = dashboard,
+                isLoadingDashboard = false,
+                goalEditor = if (
+                    current.destination == TrackingDestination.Goals &&
+                    !current.goalEditor.isDirty
+                ) {
+                    dashboard.goal.toEditor(date)
+                } else {
+                    current.goalEditor
+                },
+            )
         }.onFailure { error -> _state.value = _state.value.copy(isLoadingDashboard = false, dashboardError = error.userMessage()) }
         trackingRepository.rations(date = date.toString()).onSuccess { page ->
             _state.value = _state.value.copy(dayRations = page.rations)
@@ -260,6 +282,19 @@ class TrackingViewModel @Inject constructor(
         }
     }
 }
+
+private fun Goal?.toEditor(fallbackDate: LocalDate): GoalEditorState {
+    val amounts = this?.nutrients?.associate { it.code to it.amount.toEditorAmount() }.orEmpty()
+    return GoalEditorState(
+        effectiveDate = this?.effectiveLocalDate ?: fallbackDate.toString(),
+        protein = amounts["protein"].orEmpty(),
+        carbohydrates = amounts["carbohydrates"].orEmpty(),
+        fat = amounts["fat"].orEmpty(),
+    )
+}
+
+private fun String.toEditorAmount() =
+    toBigDecimalOrNull()?.stripTrailingZeros()?.toPlainString() ?: this
 
 private fun String.isPositiveDecimal() = Regex("\\d+(\\.\\d+)?").matches(this) && toBigDecimalOrNull()?.signum() == 1
 private fun Throwable.userMessage() = when (this) {

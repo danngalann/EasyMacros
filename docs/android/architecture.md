@@ -95,6 +95,9 @@ nutrients or calories, instead rendering `POST /rations/preview` and dashboard v
 Timezone changes are explicit and warn that the backend reclassifies existing ration
 days while retaining their instant and nutrient snapshots. Corrections delete a ration
 and require a new log, so the UI does not offer an in-place edit of historical totals.
+When Goals opens, `TrackingViewModel` maps the dashboard's current effective goal into
+the editor. A dirty flag prevents later navigation or dashboard refreshes from replacing
+unsaved user edits; a successful save rehydrates the editor from the returned goal.
 
 The tracking and recipe workspaces use shared screen introductions, bounded
 section cards, full-width primary actions, and mutually exclusive loading, content,

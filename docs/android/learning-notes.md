@@ -162,11 +162,17 @@ snapshot in place.
 Goals are effective-dated and use positive decimal strings. Progress is presentation
 only: when consumed amount exceeds a target, the screen exposes an over-goal label and
 caps the progress bar's visual fraction at one. The underlying amount is never capped.
+The Goals form is state-hoisted into `TrackingViewModel`: entering the destination maps
+the server-provided effective `Goal` into immutable `GoalEditorState`. Once the user
+changes a field, `isDirty` prevents recomposition, navigation, or an asynchronous
+dashboard refresh from overwriting the draft. Saving replaces it with the authoritative
+goal returned by the repository.
 History carries the backend's opaque cursor forward for the next page, rather than
 constructing an offset in Android.
 
 `TrackingViewModelTest` proves a selected day loads both dashboard and ration history,
-and that logging uses a returned server preview. Run it with:
+logging uses a returned server preview, and current goals hydrate without overwriting
+active edits. Run it with:
 
 ```sh
 cd android
