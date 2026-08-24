@@ -14,8 +14,10 @@ describe("username normalization", () => {
 });
 
 describe("password policy", () => {
-  it("requires at least twelve characters", () => {
-    expect(() => validatePassword("too-short")).toThrow("password must be");
+  it("requires at least eight characters", () => {
+    expect(() => validatePassword("short")).toThrow(
+      "password must be between 8 and 256 characters",
+    );
     expect(() => validatePassword("a-safe-password")).not.toThrow();
   });
 });
