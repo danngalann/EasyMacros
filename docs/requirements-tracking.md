@@ -129,3 +129,7 @@
 - [x] Recipe-origin creation Back returns directly to the preserved recipe
 - [x] Android system Back navigates subordinate/app destinations before activity exit
 - [x] Release builds permit HTTP for an operator-enforced VPN-only API boundary
+- [x] Log ration branches to Recipe or AI + Images without changing recipe behavior
+- [x] Whole-ration AI uses the advanced model, strict totals schema, multi-image context,
+      explicit editable review, and exactly-once immutable snapshot confirmation
+- [x] AI ration history preserves and displays estimate source, confidence, and warnings

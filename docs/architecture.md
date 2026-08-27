@@ -29,6 +29,13 @@ performs the calculation and snapshot work; Fastify routes only authenticate cal
 obtain the stored timezone when logging rations, and map domain errors to API responses.
 Ration pagination is keyset-based on the history index ordering rather than offset-based.
 
+AI ration estimation is a second input path into the same immutable ration snapshot.
+Fastify validates up to four images and required context, calls OpenRouter synchronously
+with the separately configured advanced model and strict whole-ration schema, then stores
+only an expiring owner-scoped review estimate. A separate optimistic confirmation
+transaction copies reviewed totals and estimate provenance into a source-tagged ration.
+Images are processed in memory and are not added to the ingredient job volume.
+
 Phase 10 packages the backend in a multi-stage Node 24 image. TypeScript output and SQL
 migrations are built before runtime, then only production dependencies are copied into a
 non-root process image. Production Compose has one API process and one PostgreSQL process;

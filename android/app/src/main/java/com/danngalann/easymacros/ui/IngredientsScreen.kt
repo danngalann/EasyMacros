@@ -534,10 +534,10 @@ private fun androidx.compose.foundation.lazy.LazyListScope.ingredientDetail(
     }
 }
 
-private fun compressImage(bytes: ByteArray): ByteArray? =
+internal fun compressImage(bytes: ByteArray): ByteArray? =
     BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.let(::compressBitmap)
 
-private fun compressBitmap(bitmap: Bitmap): ByteArray {
+internal fun compressBitmap(bitmap: Bitmap): ByteArray {
     val scale = minOf(1f, 2048f / maxOf(bitmap.width, bitmap.height))
     val resized = if (scale < 1f) {
         Bitmap.createScaledBitmap(bitmap, (bitmap.width * scale).toInt(), (bitmap.height * scale).toInt(), true)

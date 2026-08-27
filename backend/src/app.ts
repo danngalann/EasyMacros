@@ -9,6 +9,7 @@ import type { AppConfig } from "./config.js";
 import type { Database } from "./database.js";
 import { IngredientError, IngredientService } from "./ingredients.js";
 import { IngredientCandidateService } from "./ingredient-ingestion.js";
+import { RationAiError, RationAiService } from "./ration-ai.js";
 import { NutritionWorkflowService, WorkflowError } from "./workflows.js";
 
 export interface BuildAppOptions {
@@ -27,6 +28,7 @@ export async function buildApp({ config, database }: BuildAppOptions = {}) {
   const candidates =
     config && database ? new IngredientCandidateService(database, config) : undefined;
   const workflows = database ? new NutritionWorkflowService(database) : undefined;
+  const rationAi = config && database ? new RationAiService(database, config) : undefined;
 
   await app.register(rateLimit, { global: false });
   await app.register(multipart, {
@@ -142,6 +144,13 @@ export async function buildApp({ config, database }: BuildAppOptions = {}) {
       throw new Error("External candidates require database and config");
     }
     return candidates;
+  }
+
+  function requireRationAiService(): RationAiService {
+    if (!rationAi) {
+      throw new Error("AI ration estimates require database and config");
+    }
+    return rationAi;
   }
 
   function clientIp(request: { ip: string }): string {
@@ -649,6 +658,117 @@ export async function buildApp({ config, database }: BuildAppOptions = {}) {
     return requireWorkflowService().createRation(identity.userId, user.timezone, request.body);
   });
 
+  const rationEstimateResponse = {
+    type: "object",
+    required: [
+      "id",
+      "version",
+      "status",
+      "suggestedName",
+      "estimatedWeightGrams",
+      "nutrients",
+      "calories",
+      "confidence",
+      "warnings",
+      "provenance",
+      "expiresAt",
+    ],
+    properties: {
+      id: { type: "string", format: "uuid" },
+      version: { type: "string", format: "uuid" },
+      status: { type: "string", enum: ["ready"] },
+      suggestedName: { type: "string" },
+      estimatedWeightGrams: { type: "string" },
+      nutrients: rationPreviewResponse.properties.nutrients,
+      calories: { type: "string" },
+      confidence: { type: "string" },
+      warnings: { type: "array", items: { type: "string" } },
+      provenance: { type: "object", additionalProperties: true },
+      expiresAt: { type: "string", format: "date-time" },
+    },
+  } as const;
+
+  app.post(
+    "/ration-ai-estimates",
+    {
+      config: {
+        rateLimit: {
+          max: config?.aiRequestsPerHour ?? 10,
+          timeWindow: "1 hour",
+        },
+      },
+      schema: {
+        consumes: ["multipart/form-data"],
+        response: { 200: rationEstimateResponse },
+        tags: ["rations"],
+      },
+    },
+    async (request) => {
+      const identity = await requireIdentity(request);
+      const images: Array<{ buffer: Buffer; mime: string }> = [];
+      let description: string | undefined;
+      for await (const part of request.parts()) {
+        if (part.type === "file") {
+          if (part.fieldname !== "images") throw new RationAiError("invalid_image", 400);
+          images.push({ buffer: await part.toBuffer(), mime: part.mimetype });
+        } else if (part.fieldname === "description" && typeof part.value === "string") {
+          description = part.value;
+        }
+      }
+      return requireRationAiService().estimate(identity.userId, request.ip, {
+        images,
+        description,
+      });
+    },
+  );
+
+  app.post<{
+    Params: { estimateId: string };
+    Body: {
+      version: string;
+      name: string;
+      consumedAt: string;
+      estimatedWeightGrams: string;
+      note?: string;
+      nutrients: Array<{ code: string; amount: string }>;
+    };
+  }>(
+    "/ration-ai-estimates/:estimateId/confirm",
+    {
+      schema: {
+        params: {
+          type: "object",
+          required: ["estimateId"],
+          properties: { estimateId: { type: "string", format: "uuid" } },
+        },
+        body: {
+          type: "object",
+          additionalProperties: false,
+          required: ["version", "name", "consumedAt", "estimatedWeightGrams", "nutrients"],
+          properties: {
+            version: { type: "string", format: "uuid" },
+            name: { type: "string", minLength: 1, maxLength: 200 },
+            consumedAt: { type: "string", format: "date-time" },
+            estimatedWeightGrams: optionalRationWeight,
+            note: { type: "string", maxLength: 2_000 },
+            nutrients: rationPreviewResponse.properties.nutrients,
+          },
+        },
+        tags: ["rations"],
+      },
+    },
+    async (request) => {
+      const identity = await requireIdentity(request);
+      const user = await requireAuthService().currentUser(identity.userId);
+      return requireRationAiService().confirm(
+        identity.userId,
+        user.timezone,
+        request.params.estimateId,
+        request.body,
+      );
+    },
+  );
+
   app.post<{ Body: { consumedGrams?: string; recipeId: string } }>(
     "/rations/preview",
     {
@@ -757,6 +877,9 @@ export async function buildApp({ config, database }: BuildAppOptions = {}) {
       return reply.code(error.statusCode).send({ code: error.code });
     }
     if (error instanceof WorkflowError) {
+      return reply.code(error.statusCode).send({ code: error.code });
+    }
+    if (error instanceof RationAiError) {
       return reply.code(error.statusCode).send({ code: error.code });
     }
     const errorDetails =

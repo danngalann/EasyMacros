@@ -95,6 +95,14 @@ The ration portion field is optional: a blank draft is sent as an omitted JSON v
 which the backend resolves to the whole recipe yield; a positive value represents a
 portion of the dish.
 
+Opening Log ration now starts with a method choice. Recipe preserves the existing
+search/preview flow. AI + Images holds an immutable list of up to four compressed images,
+a required description, request state, and editable estimate in `TrackingViewModel`.
+Retrofit uploads all views together; the repository maps the structured response before
+Compose sees it. The user must review name, edible weight, and macro totals before the
+separate confirmation call logs a `source: ai` snapshot. History labels AI records and
+shows persisted confidence/warnings; Android does not calculate authoritative totals.
+
 Timezone changes are explicit and warn that the backend reclassifies existing ration
 days while retaining their instant and nutrient snapshots. Corrections delete a ration
 and require a new log, so the UI does not offer an in-place edit of historical totals.

@@ -37,6 +37,14 @@ snapshots. Rations snapshot a version's name, yield, nutrients, consumed UTC ins
 and immutable local date derived in the user's IANA timezone. Goals are versioned by
 effective local date, so historical progress remains interpretable.
 
+Rations have a `recipe` or `ai` source. Recipe rations reference the immutable recipe
+version used to calculate their snapshot. AI rations intentionally have no recipe
+reference: a short-lived, owner-scoped `ration_ai_estimate` holds the model's proposed
+whole-ration name, edible weight, nutrient totals, confidence, warnings, provenance, and
+optimistic version for review. Confirmation copies the reviewed values into the same
+immutable ration/ration-nutrient tables exactly once. The estimate expires after 24
+hours; uploaded images are validated and sent to the provider in memory, not persisted.
+
 Phase 5 exposes these models through owner-scoped workflows. Recipe creation and updates
 run transactionally: each version snapshots every selected ingredient's name and nutrient
 values, calculates six-decimal totals, and atomically changes the recipe's current
@@ -54,6 +62,10 @@ Phase 9 exposes snapshot details and a delete-then-re-log correction workflow. A
 deleted ration no longer contributes to history or dashboard totals, but its nutrient
 snapshot is never recalculated or modified in place. Ration contribution previews are
 calculated server-side from the current active recipe and create no record.
+
+AI confidence, warnings, and provider/model provenance remain attached to the logged
+ration so history continues to identify estimates as estimates. Reviewed AI totals are
+not converted to ingredient-per-100-g data and do not create a recipe.
 
 Changing a user's IANA timezone atomically reclassifies active rations' local dates from
 their stored UTC instants and records the new timezone on those rows. This deliberately

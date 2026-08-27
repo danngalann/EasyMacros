@@ -1,5 +1,12 @@
 package com.danngalann.easymacros.ui
 
+import android.Manifest
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -7,13 +14,17 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -29,8 +40,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -161,11 +176,58 @@ private fun DashboardTotals(dashboard: DailyDashboard) {
 private fun LogRation(state: TrackingUiState, viewModel: TrackingViewModel, onRecipes: () -> Unit) {
     val draft = state.rationDraft ?: return
     Row(verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = { viewModel.navigate(TrackingDestination.Dashboard) }) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to Today")
+        IconButton(onClick = viewModel::backWithinLog) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
         }
-        ScreenIntro("Log a ration", "Choose a recipe, optionally enter a portion weight, then review before saving.", Modifier.weight(1f))
+        ScreenIntro(
+            "Log a ration",
+            when (draft.method) {
+                LogRationMethod.Choose -> "Choose how to describe what you ate."
+                LogRationMethod.Recipe -> "Choose a recipe, then review its contribution."
+                LogRationMethod.Ai -> "Add several views and context, then review the AI estimate."
+            },
+            Modifier.weight(1f),
+        )
     }
+    when (draft.method) {
+        LogRationMethod.Choose -> LogRationMethodChooser(viewModel)
+        LogRationMethod.Recipe -> RecipeLogRation(draft, viewModel, onRecipes)
+        LogRationMethod.Ai -> AiLogRation(draft, viewModel)
+    }
+}
+
+@Composable
+private fun LogRationMethodChooser(viewModel: TrackingViewModel) {
+    SectionCard {
+        Text("AI + Images", style = MaterialTheme.typography.titleLarge)
+        Text(
+            "Photograph the complete meal from up to four angles and add useful portion details.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Button(onClick = viewModel::chooseAiLog, modifier = Modifier.fillMaxWidth()) {
+            Icon(Icons.Default.AutoAwesome, contentDescription = null)
+            Text(" AI + Images")
+        }
+    }
+    SectionCard {
+        Text("Recipe", style = MaterialTheme.typography.titleLarge)
+        Text(
+            "Log a whole recipe or a weighed portion using its saved nutrient snapshot.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        OutlinedButton(onClick = viewModel::chooseRecipeLog, modifier = Modifier.fillMaxWidth()) {
+            Icon(Icons.Default.Restaurant, contentDescription = null)
+            Text(" Recipe")
+        }
+    }
+}
+
+@Composable
+private fun RecipeLogRation(
+    draft: RationDraft,
+    viewModel: TrackingViewModel,
+    onRecipes: () -> Unit,
+) {
     Text("1. Choose a recipe", style = MaterialTheme.typography.titleLarge)
     OutlinedTextField(
         value = draft.recipeQuery,
@@ -186,6 +248,7 @@ private fun LogRation(state: TrackingUiState, viewModel: TrackingViewModel, onRe
                 if (selected) Icon(Icons.Default.CheckCircle, contentDescription = null)
             }
         }
+
     }
     Text("2. Choose the portion", style = MaterialTheme.typography.titleLarge)
     OutlinedTextField(
@@ -229,6 +292,175 @@ private fun LogRation(state: TrackingUiState, viewModel: TrackingViewModel, onRe
             Button(onClick = viewModel::confirmRation, enabled = !draft.isSubmitting, modifier = Modifier.fillMaxWidth()) { Text("Log ration") }
         }
     }
+}
+
+@Composable
+private fun AiLogRation(draft: RationDraft, viewModel: TrackingViewModel) {
+        val context = LocalContext.current
+        val picker = rememberLauncherForActivityResult(
+            ActivityResultContracts.PickMultipleVisualMedia(4),
+        ) { uris ->
+            uris.take(4 - draft.images.size).forEach { uri ->
+                context.contentResolver.openInputStream(uri)?.use { stream ->
+                    compressImage(stream.readBytes())?.let { bytes ->
+                        viewModel.addRationImage(bytes, "image/jpeg")
+                    }
+                }
+            }
+        }
+        val camera = rememberLauncherForActivityResult(
+            ActivityResultContracts.TakePicturePreview(),
+        ) { bitmap: Bitmap? ->
+            bitmap?.let { viewModel.addRationImage(compressBitmap(it), "image/jpeg") }
+        }
+        val cameraPermission = rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) { granted ->
+            if (granted) camera.launch(null) else viewModel.onRationCameraPermissionDenied()
+        }
+
+        Text("1. Show the complete ration", style = MaterialTheme.typography.titleLarge)
+        Text(
+            "Use multiple angles when possible. Include the full plate, side dishes, drinks, sauces, and a size reference.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                onClick = { cameraPermission.launch(Manifest.permission.CAMERA) },
+                enabled = draft.images.size < 4 && !draft.isSubmitting,
+                modifier = Modifier.weight(1f),
+            ) {
+                Icon(Icons.Default.CameraAlt, contentDescription = null)
+                Text(" Capture")
+            }
+            OutlinedButton(
+                onClick = {
+                    picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                },
+                enabled = draft.images.size < 4 && !draft.isSubmitting,
+                modifier = Modifier.weight(1f),
+            ) {
+                Icon(Icons.Default.PhotoLibrary, contentDescription = null)
+                Text(" Select")
+            }
+        }
+        if (draft.cameraPermissionDenied) {
+            Text("Camera permission was denied. You can still select photos from the system picker.")
+        }
+        draft.images.forEachIndexed { index, image ->
+            SectionCard {
+                val bitmap = remember(image.bytes) {
+                    BitmapFactory.decodeByteArray(image.bytes, 0, image.bytes.size)
+                }
+                bitmap?.let {
+                    Image(
+                        bitmap = it.asImageBitmap(),
+                        contentDescription = "Selected ration image ${index + 1}",
+                        modifier = Modifier.fillMaxWidth().height(220.dp),
+                        contentScale = ContentScale.Fit,
+                    )
+                }
+                OutlinedButton(
+                    onClick = { viewModel.removeRationImage(index) },
+                    enabled = !draft.isSubmitting,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Remove image ${index + 1}")
+                }
+            }
+        }
+        OutlinedTextField(
+            value = draft.description,
+            onValueChange = viewModel::updateAiDescription,
+            label = { Text("Description") },
+            supportingText = {
+                Text("Include restaurant/menu name, portion size, ingredients, sauces, and anything not visible.")
+            },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Button(
+            onClick = viewModel::estimateAiRation,
+            enabled = draft.images.isNotEmpty() && draft.description.isNotBlank() && !draft.isSubmitting,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(if (draft.isSubmitting && draft.aiEstimate == null) "Estimating..." else "Estimate ration")
+        }
+        if (draft.isSubmitting && draft.aiEstimate == null) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            Text("Advanced analysis can take longer. Keep this screen open.")
+        }
+        draft.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        draft.aiEstimate?.let { estimate ->
+            Text("2. Review the estimate", style = MaterialTheme.typography.titleLarge)
+            SectionCard {
+                Text(
+                    "AI estimate - confidence ${estimate.confidence.toDisplayNumber()}",
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                estimate.warnings.forEach {
+                    Text(it, color = MaterialTheme.colorScheme.tertiary)
+                }
+                OutlinedTextField(
+                    value = estimate.name,
+                    onValueChange = { viewModel.updateAiEstimate(name = it) },
+                    label = { Text("Ration name") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = estimate.estimatedWeightGrams,
+                    onValueChange = { viewModel.updateAiEstimate(weight = it) },
+                    label = { Text("Estimated edible weight") },
+                    suffix = { Text("g") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                estimate.nutrients
+                    .filter { it.code in setOf("protein", "carbohydrates", "fat") }
+                    .forEach { nutrient ->
+                        OutlinedTextField(
+                            value = nutrient.amount,
+                            onValueChange = {
+                                viewModel.updateAiEstimate(
+                                    nutrientCode = nutrient.code,
+                                    nutrientAmount = it,
+                                )
+                            },
+                            label = { Text(nutrient.code.displayLabel()) },
+                            suffix = { Text("g") },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                Text("${estimate.calories.toDisplayNumber()} kcal (original estimate)")
+            }
+            val consumedLocalDate = runCatching {
+                Instant.parse(draft.consumedAt).atZone(ZoneId.systemDefault()).toLocalDate()
+            }.getOrDefault(LocalDate.now())
+            LocaleDateField("Date eaten", consumedLocalDate.toString(), { date ->
+                val current = runCatching {
+                    Instant.parse(draft.consumedAt).atZone(ZoneId.systemDefault()).toLocalTime()
+                }.getOrDefault(java.time.LocalTime.now())
+                viewModel.updateDraft(
+                    consumedAt = LocalDate.parse(date)
+                        .atTime(current)
+                        .atZone(ZoneId.systemDefault())
+                        .toInstant()
+                        .toString(),
+                )
+            })
+            OutlinedTextField(
+                value = draft.note,
+                onValueChange = { viewModel.updateDraft(note = it) },
+                label = { Text("Note") },
+                supportingText = { Text("Optional") },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Button(
+                onClick = viewModel::confirmAiRation,
+                enabled = !draft.isSubmitting,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(if (draft.isSubmitting) "Logging..." else "Log reviewed ration")
+            }
+        }
 }
 
 @Composable
@@ -284,6 +516,9 @@ private fun RationRow(ration: RationSummary, onClick: () -> Unit) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(ration.recipeName, style = MaterialTheme.typography.titleMedium)
+                if (ration.source == "ai") {
+                    Text("AI estimate", color = MaterialTheme.colorScheme.tertiary)
+                }
                 Text("${ration.consumedGrams.toDisplayNumber()} g · ${ration.consumedAt.localizedDateTime()}", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Open ration")
@@ -300,6 +535,13 @@ private fun RationDetailDialog(detail: RationDetail, onDismiss: () -> Unit, onDe
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("${detail.consumedGrams.toDisplayNumber()} g · ${detail.consumedAt.localizedDateTime()}")
                 Text("${detail.calories.toDisplayNumber()} kcal", style = MaterialTheme.typography.titleLarge)
+                if (detail.source == "ai") {
+                    Text(
+                        "AI estimate${detail.confidence?.let { " - confidence ${it.toDisplayNumber()}" } ?: ""}",
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
+                    detail.warnings.forEach { Text(it, color = MaterialTheme.colorScheme.tertiary) }
+                }
                 HorizontalDivider()
                 detail.nutrients.forEach { Text("${it.code.displayLabel()}: ${it.amount.toDisplayNumber()} g") }
                 detail.note?.takeIf(String::isNotBlank)?.let { Text(it) }

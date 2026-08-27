@@ -19,6 +19,7 @@ export interface AppConfig {
   openRouterApiKey?: string;
   openRouterBaseUrl: string;
   openRouterModel: string;
+  openRouterAdvancedModel: string;
   imageJobDirectory: string;
   aiWorkerConcurrency: number;
   aiRequestsPerHour: number;
@@ -113,6 +114,7 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): AppCon
     openRouterApiKey: environment.OPENROUTER_API_KEY,
     openRouterBaseUrl,
     openRouterModel: environment.OPENROUTER_MODEL ?? "google/gemini-2.5-flash",
+    openRouterAdvancedModel: environment.OPENROUTER_ADVANCED_MODEL ?? "google/gemini-3.7-flash",
     imageJobDirectory: environment.IMAGE_JOB_DIRECTORY ?? "/tmp/easymacros-images",
     aiWorkerConcurrency: parsePositiveInteger(
       environment.AI_WORKER_CONCURRENCY ?? "2",

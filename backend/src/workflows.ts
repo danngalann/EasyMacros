@@ -204,8 +204,8 @@ export class NutritionWorkflowService {
       const rationId = randomUUID();
       await database.query(
         `INSERT INTO rations (id, user_id, recipe_version_id, consumed_grams, consumed_at, consumed_local_date,
-                              timezone, recipe_name, recipe_yield_grams, note)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                              timezone, recipe_name, recipe_yield_grams, note, source)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'recipe')`,
         [
           rationId,
           userId,
@@ -296,9 +296,11 @@ export class NutritionWorkflowService {
         id: string;
         note: string | null;
         recipeName: string;
+        source: string;
       }>(
         `SELECT id, consumed_grams::text AS "consumedGrams", consumed_at AS "consumedAt",
-                consumed_local_date::text AS "consumedLocalDate", recipe_name AS "recipeName", note
+                consumed_local_date::text AS "consumedLocalDate", recipe_name AS "recipeName",
+                note, source
          FROM rations WHERE user_id = $1 AND deleted_at IS NULL
            AND ($2::date IS NULL OR consumed_local_date = $2::date)
            AND ($3::date IS NULL OR consumed_local_date >= $3::date)
@@ -340,11 +342,15 @@ export class NutritionWorkflowService {
         note: string | null;
         recipeName: string;
         recipeYieldGrams: string;
+        source: string;
+        confidence: string | null;
+        warnings: string[];
         timezone: string;
       }>(
         `SELECT id, consumed_grams::text AS "consumedGrams", consumed_at AS "consumedAt",
                 consumed_local_date::text AS "consumedLocalDate", recipe_name AS "recipeName",
-                recipe_yield_grams::text AS "recipeYieldGrams", timezone, note
+                recipe_yield_grams::text AS "recipeYieldGrams", timezone, note, source,
+                confidence::text, warnings
          FROM rations WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
         [rationId, userId],
       )

@@ -7,7 +7,9 @@ import com.danngalann.easymacros.data.repository.DailyDashboard
 import com.danngalann.easymacros.data.repository.DashboardRepository
 import com.danngalann.easymacros.data.repository.Goal
 import com.danngalann.easymacros.data.repository.NutrientAmount
+import com.danngalann.easymacros.data.repository.RationAiEstimate
 import com.danngalann.easymacros.data.repository.RationDetail
+import com.danngalann.easymacros.data.repository.RationImage
 import com.danngalann.easymacros.data.repository.RationPreview
 import com.danngalann.easymacros.data.repository.RationSummary
 import com.danngalann.easymacros.data.repository.RecipeRepository
@@ -26,8 +28,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 enum class TrackingDestination { Dashboard, Log, Goals, History, Settings }
+enum class LogRationMethod { Choose, Recipe, Ai }
 
 data class RationDraft(
+    val method: LogRationMethod = LogRationMethod.Choose,
     val recipeQuery: String = "",
     val recipes: List<RecipeSummary> = emptyList(),
     val selectedRecipe: RecipeSummary? = null,
@@ -38,6 +42,10 @@ data class RationDraft(
     val isLoadingRecipes: Boolean = false,
     val isSubmitting: Boolean = false,
     val error: String? = null,
+    val images: List<RationImage> = emptyList(),
+    val description: String = "",
+    val aiEstimate: RationAiEstimate? = null,
+    val cameraPermissionDenied: Boolean = false,
 )
 
 data class GoalEditorState(
@@ -82,11 +90,16 @@ class TrackingViewModel @Inject constructor(
     private val _state = MutableStateFlow(TrackingUiState())
     val state: StateFlow<TrackingUiState> = _state.asStateFlow()
     private var recipeSearchJob: Job? = null
+    private var aiEstimateJob: Job? = null
 
     init { refreshDashboard() }
 
     fun navigate(destination: TrackingDestination) {
         val current = _state.value
+        if (current.destination == TrackingDestination.Log && destination != TrackingDestination.Log) {
+            aiEstimateJob?.cancel()
+            aiEstimateJob = null
+        }
         _state.value = current.copy(
             destination = destination,
             goalEditor = if (destination == TrackingDestination.Goals && !current.goalEditor.isDirty) {
@@ -103,8 +116,190 @@ class TrackingViewModel @Inject constructor(
     fun refreshDashboard() = loadDashboard(_state.value.date)
 
     fun openLog() {
+        aiEstimateJob?.cancel()
         _state.value = _state.value.copy(destination = TrackingDestination.Log, rationDraft = RationDraft())
+    }
+
+    fun chooseRecipeLog() {
+        val draft = _state.value.rationDraft ?: RationDraft()
+        _state.value = _state.value.copy(
+            rationDraft = draft.copy(method = LogRationMethod.Recipe, error = null),
+        )
         searchRecipes("")
+    }
+
+    fun chooseAiLog() {
+        aiEstimateJob?.cancel()
+        val draft = _state.value.rationDraft ?: RationDraft()
+        _state.value = _state.value.copy(
+            rationDraft = draft.copy(
+                method = LogRationMethod.Ai,
+                images = emptyList(),
+                description = "",
+                aiEstimate = null,
+                error = null,
+            ),
+        )
+    }
+
+    fun backWithinLog() {
+        aiEstimateJob?.cancel()
+        aiEstimateJob = null
+        val draft = _state.value.rationDraft ?: return
+        if (draft.method == LogRationMethod.Choose) {
+            _state.value = _state.value.copy(
+                destination = TrackingDestination.Dashboard,
+                rationDraft = null,
+            )
+        } else {
+            _state.value = _state.value.copy(rationDraft = RationDraft())
+        }
+    }
+
+    fun addRationImage(bytes: ByteArray, mime: String) {
+        val draft = _state.value.rationDraft ?: return
+        if (draft.images.size >= 4) return
+        _state.value = _state.value.copy(
+            rationDraft = draft.copy(
+                images = draft.images + RationImage(bytes, mime),
+                aiEstimate = null,
+                error = null,
+            ),
+        )
+    }
+
+    fun removeRationImage(index: Int) {
+        val draft = _state.value.rationDraft ?: return
+        _state.value = _state.value.copy(
+            rationDraft = draft.copy(
+                images = draft.images.filterIndexed { current, _ -> current != index },
+                aiEstimate = null,
+            ),
+        )
+    }
+
+    fun updateAiDescription(value: String) {
+        val draft = _state.value.rationDraft ?: return
+        _state.value = _state.value.copy(
+            rationDraft = draft.copy(
+                description = value.take(1_000),
+                aiEstimate = null,
+                error = null,
+            ),
+        )
+    }
+
+    fun onRationCameraPermissionDenied() {
+        val draft = _state.value.rationDraft ?: return
+        _state.value = _state.value.copy(
+            rationDraft = draft.copy(cameraPermissionDenied = true),
+        )
+    }
+
+    fun estimateAiRation() {
+        val draft = _state.value.rationDraft ?: return
+        if (draft.images.isEmpty()) {
+            _state.value = _state.value.copy(
+                rationDraft = draft.copy(error = "Capture or select at least one image."),
+            )
+            return
+        }
+        if (draft.description.isBlank()) {
+            _state.value = _state.value.copy(
+                rationDraft = draft.copy(
+                    error = "Describe the meal, portion, and anything the images do not show.",
+                ),
+            )
+            return
+        }
+        aiEstimateJob?.cancel()
+        aiEstimateJob = viewModelScope.launch {
+            _state.value = _state.value.copy(
+                rationDraft = draft.copy(isSubmitting = true, error = null),
+            )
+            trackingRepository.estimateRation(draft.images, draft.description).onSuccess { estimate ->
+                _state.value = _state.value.copy(
+                    rationDraft = _state.value.rationDraft?.copy(
+                        aiEstimate = estimate,
+                        isSubmitting = false,
+                    ),
+                )
+            }.onFailure { error ->
+                _state.value = _state.value.copy(
+                    rationDraft = _state.value.rationDraft?.copy(
+                        isSubmitting = false,
+                        error = error.userMessage(),
+                    ),
+                )
+            }
+            aiEstimateJob = null
+        }
+    }
+
+    fun updateAiEstimate(
+        name: String? = null,
+        weight: String? = null,
+        nutrientCode: String? = null,
+        nutrientAmount: String? = null,
+    ) {
+        val draft = _state.value.rationDraft ?: return
+        val estimate = draft.aiEstimate ?: return
+        val nutrients = if (nutrientCode == null) {
+            estimate.nutrients
+        } else {
+            estimate.nutrients.map {
+                if (it.code == nutrientCode) it.copy(amount = nutrientAmount.orEmpty()) else it
+            }
+        }
+        _state.value = _state.value.copy(
+            rationDraft = draft.copy(
+                aiEstimate = estimate.copy(
+                    name = name ?: estimate.name,
+                    estimatedWeightGrams = weight ?: estimate.estimatedWeightGrams,
+                    nutrients = nutrients,
+                ),
+                error = null,
+            ),
+        )
+    }
+
+    fun confirmAiRation() {
+        val draft = _state.value.rationDraft ?: return
+        val estimate = draft.aiEstimate ?: return
+        val macroCodes = estimate.nutrients.map(NutrientAmount::code)
+        if (
+            estimate.name.isBlank() ||
+            !estimate.estimatedWeightGrams.isPositiveDecimal() ||
+            listOf("protein", "carbohydrates", "fat").any { it !in macroCodes } ||
+            estimate.nutrients.any { !it.amount.isNonNegativeDecimal() } ||
+            runCatching { Instant.parse(draft.consumedAt) }.isFailure
+        ) {
+            _state.value = _state.value.copy(
+                rationDraft = draft.copy(
+                    error = "Review the name, weight, time, and all macro values before logging.",
+                ),
+            )
+            return
+        }
+        viewModelScope.launch {
+            _state.value = _state.value.copy(
+                rationDraft = draft.copy(isSubmitting = true, error = null),
+            )
+            trackingRepository.logAiRation(estimate, draft.consumedAt, draft.note).onSuccess {
+                _state.value = _state.value.copy(
+                    destination = TrackingDestination.Dashboard,
+                    rationDraft = null,
+                )
+                refreshDashboard()
+            }.onFailure { error ->
+                _state.value = _state.value.copy(
+                    rationDraft = _state.value.rationDraft?.copy(
+                        isSubmitting = false,
+                        error = error.userMessage(),
+                    ),
+                )
+            }
+        }
     }
 
     fun updateDraft(query: String? = null, grams: String? = null, consumedAt: String? = null, note: String? = null) {
@@ -297,6 +492,8 @@ private fun String.toEditorAmount() =
     toBigDecimalOrNull()?.stripTrailingZeros()?.toPlainString() ?: this
 
 private fun String.isPositiveDecimal() = Regex("\\d+(\\.\\d+)?").matches(this) && toBigDecimalOrNull()?.signum() == 1
+private fun String.isNonNegativeDecimal() =
+    Regex("\\d+(\\.\\d+)?").matches(this) && (toBigDecimalOrNull()?.signum() ?: -1) >= 0
 private fun String.isOptionalPositiveDecimal() = isBlank() || isPositiveDecimal()
 private fun Throwable.userMessage() = when (this) {
     is ApiFailure.Http -> if (statusCode == 401) "Your session has expired. Sign in again." else "Unable to complete that request. Try again."

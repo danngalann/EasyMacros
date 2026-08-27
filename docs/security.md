@@ -51,10 +51,18 @@ credential is suspected compromised.
 
 External ingestion keeps provider traffic server-side. Open Food Facts receives only the
 normalized barcode plus configured locale/country and the required operator-contact
-User-Agent. OpenRouter receives a validated image and optional description delimited as
-untrusted data. Tools are not enabled; output must match a strict local schema. Normal
+User-Agent. OpenRouter receives validated images and description text delimited as untrusted data.
+Ingredient descriptions are optional; ration descriptions are required. Tools are not
+enabled; output must match a strict local schema. Normal
 logs contain no images, prompts, provider bodies, API keys, authorization headers, or
 full barcodes.
+
+Ration estimation uses the separately configured `OPENROUTER_ADVANCED_MODEL` because it
+requires whole-meal visual reasoning. Its description is required but remains delimited
+as untrusted data; tools are explicitly empty. Images are validated under the same
+limits, sent directly from memory, and never written to the image-job volume or database.
+Only the structured estimate and later reviewed snapshot are retained. Ingredient and
+ration AI requests share the per-user/IP hourly quota.
 
 AI uploads are limited to four files, each bounded by encoded size, MIME/signature
 agreement, decoded dimensions, pixel count, and basic polyglot indicators. Files use random names in a mode-0700

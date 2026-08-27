@@ -6,6 +6,8 @@ import com.danngalann.easymacros.data.repository.Goal
 import com.danngalann.easymacros.data.repository.IngredientDraft
 import com.danngalann.easymacros.data.repository.NutrientAmount
 import com.danngalann.easymacros.data.repository.RationDetail
+import com.danngalann.easymacros.data.repository.RationAiEstimate
+import com.danngalann.easymacros.data.repository.RationImage
 import com.danngalann.easymacros.data.repository.RationPage
 import com.danngalann.easymacros.data.repository.RationPreview
 import com.danngalann.easymacros.data.repository.RecipeRepository
@@ -83,6 +85,30 @@ class TrackingViewModelTest {
         assertEquals(TrackingDestination.Dashboard, viewModel.state.value.destination)
     }
 
+    @Test fun `AI images produce an editable estimate before logging`() = runTest {
+        val tracking = FakeTrackingRepository()
+        val viewModel = TrackingViewModel(
+            TrackingFakeDashboardRepository(),
+            TrackingFakeRecipeRepository(),
+            tracking,
+        )
+        runCurrent()
+        viewModel.openLog()
+        viewModel.chooseAiLog()
+        viewModel.addRationImage(byteArrayOf(1, 2, 3), "image/jpeg")
+        viewModel.updateAiDescription("Restaurant curry with rice")
+
+        viewModel.estimateAiRation()
+        runCurrent()
+        viewModel.updateAiEstimate(nutrientCode = "fat", nutrientAmount = "22")
+        viewModel.confirmAiRation()
+        runCurrent()
+
+        assertEquals("Restaurant curry with rice", tracking.estimatedDescription)
+        assertEquals("22", tracking.loggedAiEstimate?.nutrients?.first { it.code == "fat" }?.amount)
+        assertEquals(TrackingDestination.Dashboard, viewModel.state.value.destination)
+    }
+
     @Test fun `timezone draft updates without making a request`() = runTest {
         val tracking = FakeTrackingRepository()
         val viewModel = TrackingViewModel(TrackingFakeDashboardRepository(), TrackingFakeRecipeRepository(), tracking)
@@ -149,10 +175,12 @@ private class FakeTrackingRepository : TrackingRepository {
     val previewedGrams = mutableListOf<String?>()
     val loggedGrams = mutableListOf<String?>()
     var timezoneUpdates = 0
+    var estimatedDescription: String? = null
+    var loggedAiEstimate: RationAiEstimate? = null
 
     override suspend fun rations(date: String?, from: String?, to: String?, query: String?, cursor: String?): Result<RationPage> {
         requestedDates += date
-        return Result.success(RationPage(listOf(com.danngalann.easymacros.data.repository.RationSummary("ration-1", "Breakfast", "50", "2026-08-07T08:00:00Z", "2026-08-07", null)), null))
+        return Result.success(RationPage(listOf(com.danngalann.easymacros.data.repository.RationSummary("ration-1", "Breakfast", "50", "2026-08-07T08:00:00Z", "2026-08-07", null, "recipe")), null))
     }
 
     override suspend fun ration(rationId: String): Result<RationDetail> = error("not used")
@@ -162,6 +190,36 @@ private class FakeTrackingRepository : TrackingRepository {
     }
     override suspend fun logRation(recipeId: String, grams: String?, consumedAt: String, note: String): Result<Unit> {
         loggedGrams += grams
+        return Result.success(Unit)
+    }
+    override suspend fun estimateRation(
+        images: List<RationImage>,
+        description: String,
+    ): Result<RationAiEstimate> {
+        estimatedDescription = description
+        return Result.success(
+            RationAiEstimate(
+                "estimate-1",
+                "version-1",
+                "Restaurant curry",
+                "600",
+                listOf(
+                    NutrientAmount("protein", "30"),
+                    NutrientAmount("carbohydrates", "90"),
+                    NutrientAmount("fat", "25"),
+                ),
+                "705",
+                "0.62",
+                listOf("Review the estimate."),
+            ),
+        )
+    }
+    override suspend fun logAiRation(
+        estimate: RationAiEstimate,
+        consumedAt: String,
+        note: String,
+    ): Result<Unit> {
+        loggedAiEstimate = estimate
         return Result.success(Unit)
     }
     override suspend fun deleteRation(rationId: String) = Result.success(Unit)

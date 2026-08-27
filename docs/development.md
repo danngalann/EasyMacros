@@ -132,13 +132,15 @@ OPEN_FOOD_FACTS_USER_AGENT='EasyMacros/0.1.0 (operator@example.com)'
 ```
 
 Set `OPENROUTER_API_KEY` only in the ignored local `.env`; never put it in Gradle,
-source, screenshots, or shell history. Synthetic tests mock both providers:
+source, screenshots, or shell history. `OPENROUTER_MODEL` handles ingredient candidates;
+`OPENROUTER_ADVANCED_MODEL` handles whole-ration estimates and defaults to
+`google/gemini-3.7-flash`. Synthetic tests mock both providers:
 
 ```sh
-pnpm --filter @easymacros/backend test -- ingredient-ingestion.test.ts ingredients.test.ts
+pnpm --filter @easymacros/backend test -- ingredient-ingestion.test.ts ingredients.test.ts ration-ai.test.ts
 cd android
 ./gradlew :app:testDebugUnitTest --tests 'com.danngalann.easymacros.ui.IngredientsViewModelTest'
 ```
 
-Apply `0004_add_external_ingredient_candidates.sql` before exercising the Android flow.
+Apply migrations through `0006_add_ai_ration_estimates.sql` before exercising the Android flow.
 The committed API contract is `backend/openapi.json`.

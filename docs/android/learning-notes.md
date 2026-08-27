@@ -278,5 +278,26 @@ ViewModel's `viewModelScope` updates `StateFlow`, and lifecycle-aware collection
 recomposes the review after configuration changes without calculating nutrients in
 Compose. A common debugging check is to inspect the serialized request, because sending
 an empty string instead of omitting the field correctly produces validation failure.
+
+The expanded log flow uses `LogRationMethod` as a small state machine: `Choose`,
+`Recipe`, or `Ai`. The immutable `RationDraft` carries only the active branch's values;
+events replace it with `copy`, and `StateFlow` drives recomposition. Images are selected
+through Activity Result contracts, resized before upload, and retained by the
+activity-scoped `TrackingViewModel` across configuration changes. They are not restored
+after process death, so the safe behavior is to restart the private upload rather than
+persist meal photos locally.
+
+Data flows `TrackingApi` DTO -> `TrackingRepository` domain estimate ->
+`TrackingViewModel` review state -> composable fields. Retrofit endpoints are `suspend`;
+`viewModelScope` binds their coroutines to ViewModel lifetime, while lifecycle-aware
+collection stops UI observation off-screen. Hilt supplies the existing protected
+Retrofit client. No nullable estimate is force-unwrapped: the review branch renders only
+inside `?.let`, and immutable nutrient lists are replaced with `map`.
+
+The important pitfall is showing stale calories after a user edits macros. The screen
+labels calories as the original estimate and the backend derives persisted calories
+from reviewed totals during confirmation. `TrackingViewModelTest` proves multiple
+images/context reach the repository, the estimate remains editable, and only the
+reviewed values are logged. Run it with the existing Phase 9 test command above.
 The ViewModel regression test proves blank weight reaches preview and create as null and
 successfully returns the user to Today.

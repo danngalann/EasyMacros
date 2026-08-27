@@ -84,7 +84,11 @@ fun AuthenticatedApp(
                 recipesViewModel.closeDetail()
             destination != AppDestination.Today -> destination = AppDestination.Today
             trackingState.destination != TrackingDestination.Dashboard ->
-                trackingViewModel.navigate(TrackingDestination.Dashboard)
+                if (trackingState.destination == TrackingDestination.Log) {
+                    trackingViewModel.backWithinLog()
+                } else {
+                    trackingViewModel.navigate(TrackingDestination.Dashboard)
+                }
         }
     }
 

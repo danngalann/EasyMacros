@@ -102,8 +102,9 @@ recovery verification.
 External ingestion is disabled until configured. For Open Food Facts, set
 `OPEN_FOOD_FACTS_ENABLED=true` and a real contact-bearing
 `OPEN_FOOD_FACTS_USER_AGENT`; review current OFF terms, attribution, and shared-IP limits.
-For AI, inject `OPENROUTER_API_KEY`, select `OPENROUTER_MODEL`, set a provider-side spend
-cap, and tune `AI_REQUESTS_PER_HOUR`, `AI_WORKER_CONCURRENCY`, and
+For AI, inject `OPENROUTER_API_KEY`, select `OPENROUTER_MODEL` for ingredient work and
+`OPENROUTER_ADVANCED_MODEL` for whole-ration estimation, set a provider-side spend cap,
+and tune `AI_REQUESTS_PER_HOUR`, `AI_WORKER_CONCURRENCY`, and
 `AI_MAX_UPLOAD_BYTES`. Monitor aggregate status/latency/cost metadata only—never prompts,
 images, or provider responses.
 

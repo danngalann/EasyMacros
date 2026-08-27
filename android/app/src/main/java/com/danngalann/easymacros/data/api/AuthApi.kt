@@ -72,6 +72,19 @@ interface TrackingApi {
     @POST("rations/preview")
     suspend fun previewRation(@Body request: RationPreviewRequest): RationPreviewResponse
 
+    @Multipart
+    @POST("ration-ai-estimates")
+    suspend fun estimateRation(
+        @Part images: List<MultipartBody.Part>,
+        @Part("description") description: RequestBody?,
+    ): RationAiEstimateResponse
+
+    @POST("ration-ai-estimates/{estimateId}/confirm")
+    suspend fun confirmRationEstimate(
+        @retrofit2.http.Path("estimateId") estimateId: String,
+        @Body request: ConfirmRationEstimateRequest,
+    ): RationCreatedResponse
+
     @DELETE("rations/{rationId}")
     suspend fun deleteRation(@retrofit2.http.Path("rationId") rationId: String)
 
@@ -101,6 +114,24 @@ data class RationPreviewResponse(
     val nutrients: List<NutrientAmountResponse>,
     val calories: String,
 )
+data class RationAiEstimateResponse(
+    val id: String,
+    val version: String,
+    val suggestedName: String,
+    val estimatedWeightGrams: String,
+    val nutrients: List<NutrientAmountResponse>,
+    val calories: String,
+    val confidence: String,
+    val warnings: List<String>,
+)
+data class ConfirmRationEstimateRequest(
+    val version: String,
+    val name: String,
+    val estimatedWeightGrams: String,
+    val consumedAt: String,
+    val note: String?,
+    val nutrients: List<NutrientAmountResponse>,
+)
 data class RationListResponse(val rations: List<RationSummaryResponse>, val nextCursor: String?)
 data class RationSummaryResponse(
     val id: String,
@@ -109,6 +140,7 @@ data class RationSummaryResponse(
     val consumedAt: String,
     val consumedLocalDate: String,
     val note: String?,
+    val source: String = "recipe",
 )
 data class RationDetailResponse(
     val id: String,
@@ -121,6 +153,9 @@ data class RationDetailResponse(
     val note: String?,
     val nutrients: List<NutrientAmountResponse>,
     val calories: String,
+    val source: String = "recipe",
+    val confidence: String?,
+    val warnings: List<String> = emptyList(),
 )
 data class GoalRequest(val effectiveLocalDate: String, val nutrients: List<NutrientAmountResponse>)
 data class TimezoneRequest(val timezone: String)

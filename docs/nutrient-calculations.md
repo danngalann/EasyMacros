@@ -34,6 +34,12 @@ marks the value as derived. Confirmation still persists the user's reviewed deci
 AI output is normalized from its positive `basisGrams` with
 `per100 = reportedAmount * 100 / basisGrams` before review.
 
+Ration AI output uses a different structured contract: amounts are totals for the entire
+pictured ration, not per 100 g. The backend validates and stores the user's reviewed
+decimal totals directly. It derives calories from those reviewed protein, carbohydrate,
+and fat totals with the same canonical formula; it does not rescale them through a
+recipe yield.
+
 Phase 5 persists recipe and ration calculations as immutable snapshots inside the same
 transaction as their parent record. The dashboard sums persisted ration nutrients and
 then derives calories from that sum, rather than recalculating from mutable ingredients

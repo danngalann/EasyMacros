@@ -84,6 +84,8 @@ describe("health endpoint", () => {
     expect(paths).toHaveProperty("/ingredient-candidates/{candidateId}");
     expect(paths).toHaveProperty("/ingredient-candidates/{candidateId}/retry");
     expect(paths).toHaveProperty("/ingredient-candidates/{candidateId}/confirm");
+    expect(paths).toHaveProperty("/ration-ai-estimates");
+    expect(paths).toHaveProperty("/ration-ai-estimates/{estimateId}/confirm");
     const rationRequestBodies = JSON.parse(JSON.stringify(paths)) as Record<
       string,
       {

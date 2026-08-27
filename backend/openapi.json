@@ -1356,6 +1356,162 @@
         }
       }
     },
+    "/ration-ai-estimates": {
+      "post": {
+        "tags": ["rations"],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "version",
+                    "status",
+                    "suggestedName",
+                    "estimatedWeightGrams",
+                    "nutrients",
+                    "calories",
+                    "confidence",
+                    "warnings",
+                    "provenance",
+                    "expiresAt"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "version": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["ready"]
+                    },
+                    "suggestedName": {
+                      "type": "string"
+                    },
+                    "estimatedWeightGrams": {
+                      "type": "string"
+                    },
+                    "nutrients": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": ["code", "amount"],
+                        "properties": {
+                          "code": {
+                            "type": "string"
+                          },
+                          "amount": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "calories": {
+                      "type": "string"
+                    },
+                    "confidence": {
+                      "type": "string"
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "provenance": {
+                      "type": "object",
+                      "additionalProperties": true
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ration-ai-estimates/{estimateId}/confirm": {
+      "post": {
+        "tags": ["rations"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["version", "name", "consumedAt", "estimatedWeightGrams", "nutrients"],
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "consumedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "estimatedWeightGrams": {
+                    "type": "string",
+                    "pattern": "^(?:0*[1-9]\\d*(?:\\.\\d+)?|0+\\.\\d*[1-9]\\d*)$"
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "nutrients": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["code", "amount"],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "amount": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "estimateId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/rations/preview": {
       "post": {
         "tags": ["rations"],

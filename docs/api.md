@@ -164,6 +164,8 @@ Phase 9 adds Android-facing ration management and profile timezone endpoints:
 
 ```http
 POST   /rations/preview
+POST   /ration-ai-estimates
+POST   /ration-ai-estimates/{estimateId}/confirm
 GET    /rations/{rationId}
 DELETE /rations/{rationId}
 PUT    /me/timezone
@@ -174,6 +176,20 @@ PUT    /me/timezone
 returns the resolved `consumedGrams`, proportional nutrients, and calories without persisting a ration. Clients must use this returned value for the
 contribution review; only `POST /rations` creates the immutable snapshot.
 
+`POST /ration-ai-estimates` is protected multipart input with one to four repeated
+`images` files and a required `description` (maximum 1,000 characters). The server
+validates every image, consumes the shared per-user/IP AI quota, and sends all views
+together to `OPENROUTER_ADVANCED_MODEL`. Strict structured output returns a whole-ration
+name, estimated edible weight, total nutrients, confidence, and warnings. These are
+editable review data; no ration is logged yet, and images are never stored.
+
+`POST /ration-ai-estimates/{estimateId}/confirm` requires the estimate `version`, reviewed
+`name`, positive `estimatedWeightGrams`, ISO-8601 `consumedAt`, optional note, and unique
+non-negative nutrient totals including protein, carbohydrates, and fat. It owner-scopes
+and locks the unexpired estimate, creates one immutable `source: "ai"` ration snapshot,
+and marks the estimate confirmed in the same transaction. A repeated or stale
+confirmation returns `409`. Recipe ration behavior is unchanged.
+
 `GET /rations` also accepts optional `from`, `to`, and `query` parameters. `from` and
 `to` are inclusive `YYYY-MM-DD` local-date bounds; `query` searches the ration's
 snapshotted recipe name and note. Results remain owner-scoped, keyset-paginated, and
@@ -183,6 +199,9 @@ bounded to 100 items per request.
 date/timezone, note, nutrient snapshot, and derived calories. `DELETE /rations/{rationId}`
 soft-deletes the logged ration. Correction is deliberately delete-then-re-log; it does
 not alter a ration snapshot in place.
+
+Ration list/detail responses identify `source` as `recipe` or `ai`. AI details also
+return confidence and warnings so clients label estimated values explicitly.
 
 `PUT /me/timezone` accepts an IANA timezone. It atomically updates the profile and
 reclassifies all active ration `consumed_local_date` values from their immutable
