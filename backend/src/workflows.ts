@@ -167,10 +167,10 @@ export class NutritionWorkflowService {
   async createRation(
     userId: string,
     timezone: string,
-    input: { consumedAt: string; consumedGrams: string; note?: string; recipeId: string },
+    input: { consumedAt: string; consumedGrams?: string; note?: string; recipeId: string },
   ) {
     if (
-      !positiveDecimal(input.consumedGrams) ||
+      (input.consumedGrams !== undefined && !positiveDecimal(input.consumedGrams)) ||
       !input.recipeId ||
       !validInstant(input.consumedAt)
     ) {
@@ -188,6 +188,7 @@ export class NutritionWorkflowService {
         )
       ).rows[0];
       if (!version) throw new WorkflowError("recipe_not_found", 404);
+      const consumedGrams = input.consumedGrams ?? version.yieldGrams;
       const nutrients = (
         await database.query<NutrientAmount>(
           `SELECT nutrient_code AS code, amount::text AS amount
@@ -197,7 +198,7 @@ export class NutritionWorkflowService {
       ).rows;
       const rationNutrients = calculateRationNutrients(
         nutrients,
-        input.consumedGrams,
+        consumedGrams,
         version.yieldGrams,
       );
       const rationId = randomUUID();
@@ -209,7 +210,7 @@ export class NutritionWorkflowService {
           rationId,
           userId,
           version.id,
-          input.consumedGrams,
+          consumedGrams,
           input.consumedAt,
           localDate,
           timezone,
@@ -228,8 +229,11 @@ export class NutritionWorkflowService {
     });
   }
 
-  async previewRation(userId: string, input: { consumedGrams: string; recipeId: string }) {
-    if (!positiveDecimal(input.consumedGrams) || !input.recipeId) {
+  async previewRation(userId: string, input: { consumedGrams?: string; recipeId: string }) {
+    if (
+      (input.consumedGrams !== undefined && !positiveDecimal(input.consumedGrams)) ||
+      !input.recipeId
+    ) {
       throw new WorkflowError("invalid_ration", 400);
     }
     const version = (
@@ -242,6 +246,7 @@ export class NutritionWorkflowService {
       )
     ).rows[0];
     if (!version) throw new WorkflowError("recipe_not_found", 404);
+    const consumedGrams = input.consumedGrams ?? version.yieldGrams;
     const nutrients = (
       await this.database.query<NutrientAmount>(
         `SELECT nutrient_code AS code, amount::text AS amount FROM recipe_version_nutrients
@@ -249,13 +254,10 @@ export class NutritionWorkflowService {
         [version.id],
       )
     ).rows;
-    const rationNutrients = calculateRationNutrients(
-      nutrients,
-      input.consumedGrams,
-      version.yieldGrams,
-    );
+    const rationNutrients = calculateRationNutrients(nutrients, consumedGrams, version.yieldGrams);
     return {
       recipeName: version.name,
+      consumedGrams,
       nutrients: rationNutrients,
       calories: calculateCalories(rationNutrients),
     };

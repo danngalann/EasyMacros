@@ -127,13 +127,13 @@ class TrackingViewModel @Inject constructor(
     fun previewRation() {
         val draft = _state.value.rationDraft ?: return
         val recipe = draft.selectedRecipe
-        if (recipe == null || !draft.grams.isPositiveDecimal()) {
-            _state.value = _state.value.copy(rationDraft = draft.copy(error = "Choose a recipe and enter positive grams."))
+        if (recipe == null || !draft.grams.isOptionalPositiveDecimal()) {
+            _state.value = _state.value.copy(rationDraft = draft.copy(error = "Choose a recipe and enter a positive portion weight, or leave it blank for the whole dish."))
             return
         }
         viewModelScope.launch {
             _state.value = _state.value.copy(rationDraft = draft.copy(isSubmitting = true, error = null))
-            trackingRepository.previewRation(recipe.id, draft.grams).onSuccess { preview ->
+            trackingRepository.previewRation(recipe.id, draft.grams.takeIf(String::isNotBlank)).onSuccess { preview ->
                 _state.value = _state.value.copy(rationDraft = _state.value.rationDraft?.copy(preview = preview, isSubmitting = false))
             }.onFailure { error ->
                 _state.value = _state.value.copy(rationDraft = _state.value.rationDraft?.copy(isSubmitting = false, error = error.userMessage()))
@@ -144,13 +144,13 @@ class TrackingViewModel @Inject constructor(
     fun confirmRation() {
         val draft = _state.value.rationDraft ?: return
         val recipe = draft.selectedRecipe ?: return
-        if (draft.preview == null || !draft.grams.isPositiveDecimal() || runCatching { Instant.parse(draft.consumedAt) }.isFailure) {
-            _state.value = _state.value.copy(rationDraft = draft.copy(error = "Review a valid recipe, grams, and ISO-8601 time before logging."))
+        if (draft.preview == null || !draft.grams.isOptionalPositiveDecimal() || runCatching { Instant.parse(draft.consumedAt) }.isFailure) {
+            _state.value = _state.value.copy(rationDraft = draft.copy(error = "Review a valid recipe, optional portion weight, and ISO-8601 time before logging."))
             return
         }
         viewModelScope.launch {
             _state.value = _state.value.copy(rationDraft = draft.copy(isSubmitting = true, error = null))
-            trackingRepository.logRation(recipe.id, draft.grams, draft.consumedAt, draft.note).onSuccess {
+            trackingRepository.logRation(recipe.id, draft.grams.takeIf(String::isNotBlank), draft.consumedAt, draft.note).onSuccess {
                 _state.value = _state.value.copy(destination = TrackingDestination.Dashboard, rationDraft = null)
                 refreshDashboard()
             }.onFailure { error ->
@@ -297,6 +297,7 @@ private fun String.toEditorAmount() =
     toBigDecimalOrNull()?.stripTrailingZeros()?.toPlainString() ?: this
 
 private fun String.isPositiveDecimal() = Regex("\\d+(\\.\\d+)?").matches(this) && toBigDecimalOrNull()?.signum() == 1
+private fun String.isOptionalPositiveDecimal() = isBlank() || isPositiveDecimal()
 private fun Throwable.userMessage() = when (this) {
     is ApiFailure.Http -> if (statusCode == 401) "Your session has expired. Sign in again." else "Unable to complete that request. Try again."
     ApiFailure.Network -> "Unable to reach EasyMacros. Check your connection and try again."

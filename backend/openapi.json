@@ -1312,6 +1312,35 @@
     "/rations": {
       "post": {
         "tags": ["rations"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["recipeId", "consumedAt"],
+                "additionalProperties": false,
+                "properties": {
+                  "recipeId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "consumedGrams": {
+                    "type": "string",
+                    "pattern": "^(?:0*[1-9]\\d*(?:\\.\\d+)?|0+\\.\\d*[1-9]\\d*)$"
+                  },
+                  "consumedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "note": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Default Response"
@@ -1330,9 +1359,65 @@
     "/rations/preview": {
       "post": {
         "tags": ["rations"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["recipeId"],
+                "additionalProperties": false,
+                "properties": {
+                  "recipeId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "consumedGrams": {
+                    "type": "string",
+                    "pattern": "^(?:0*[1-9]\\d*(?:\\.\\d+)?|0+\\.\\d*[1-9]\\d*)$"
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "Default Response"
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["recipeName", "consumedGrams", "nutrients", "calories"],
+                  "properties": {
+                    "recipeName": {
+                      "type": "string"
+                    },
+                    "consumedGrams": {
+                      "type": "string"
+                    },
+                    "nutrients": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": ["code", "amount"],
+                        "properties": {
+                          "code": {
+                            "type": "string"
+                          },
+                          "amount": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "calories": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }

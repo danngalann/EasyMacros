@@ -12,15 +12,18 @@ snapshots without intermediate display rounding:
 ```text
 component amount = amount per 100 g * component grams / 100
 recipe total = sum(component amounts)
-ration amount = recipe total * consumed grams / recipe yield grams
+ration amount = recipe total * resolved consumed grams / recipe yield grams
 ```
 
 For the current product semantics, `recipe yield = sum(component grams)`. This keeps
 ration scaling deterministic without a second user-entered weight. Modeling cooking
 water loss or gain would require a future explicit product decision.
+When ration weight is omitted, `resolved consumed grams = recipe yield grams`, so the
+whole dish is logged. An explicit positive ration weight scales the snapshot for a
+portion, such as one serving from a meal-prepped batch.
 
 Values are rounded half-up to six decimal places only when serialized. Recipe yield,
-component weights, consumed weights, and goal amounts must be positive; nutrient
+component weights, explicit consumed weights, and goal amounts must be positive; nutrient
 amounts must be finite and non-negative. Calories are derived from the ration snapshot
 using `protein_g * 4 + carbohydrates_g * 4 + fat_g * 9`; label energy is not used.
 

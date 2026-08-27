@@ -64,6 +64,25 @@ class TrackingViewModelTest {
         assertEquals("84.000000", viewModel.state.value.rationDraft?.preview?.calories)
     }
 
+    @Test fun `blank ration weight previews and logs the whole recipe`() = runTest {
+        val tracking = FakeTrackingRepository()
+        val viewModel = TrackingViewModel(TrackingFakeDashboardRepository(), TrackingFakeRecipeRepository(), tracking)
+        runCurrent()
+        viewModel.openLog()
+        advanceTimeBy(250)
+        runCurrent()
+
+        viewModel.selectRecipe(RecipeSummary("recipe-1", "Breakfast", "300", 1))
+        viewModel.previewRation()
+        runCurrent()
+        viewModel.confirmRation()
+        runCurrent()
+
+        assertEquals(listOf(null), tracking.previewedGrams)
+        assertEquals(listOf(null), tracking.loggedGrams)
+        assertEquals(TrackingDestination.Dashboard, viewModel.state.value.destination)
+    }
+
     @Test fun `timezone draft updates without making a request`() = runTest {
         val tracking = FakeTrackingRepository()
         val viewModel = TrackingViewModel(TrackingFakeDashboardRepository(), TrackingFakeRecipeRepository(), tracking)
@@ -127,6 +146,8 @@ private class TrackingFakeRecipeRepository : RecipeRepository {
 
 private class FakeTrackingRepository : TrackingRepository {
     val requestedDates = mutableListOf<String?>()
+    val previewedGrams = mutableListOf<String?>()
+    val loggedGrams = mutableListOf<String?>()
     var timezoneUpdates = 0
 
     override suspend fun rations(date: String?, from: String?, to: String?, query: String?, cursor: String?): Result<RationPage> {
@@ -135,8 +156,14 @@ private class FakeTrackingRepository : TrackingRepository {
     }
 
     override suspend fun ration(rationId: String): Result<RationDetail> = error("not used")
-    override suspend fun previewRation(recipeId: String, grams: String) = Result.success(RationPreview("Breakfast", listOf(NutrientAmount("protein", "4.5")), "84.000000"))
-    override suspend fun logRation(recipeId: String, grams: String, consumedAt: String, note: String) = Result.success(Unit)
+    override suspend fun previewRation(recipeId: String, grams: String?): Result<RationPreview> {
+        previewedGrams += grams
+        return Result.success(RationPreview("Breakfast", grams ?: "300", listOf(NutrientAmount("protein", "4.5")), "84.000000"))
+    }
+    override suspend fun logRation(recipeId: String, grams: String?, consumedAt: String, note: String): Result<Unit> {
+        loggedGrams += grams
+        return Result.success(Unit)
+    }
     override suspend fun deleteRation(rationId: String) = Result.success(Unit)
     override suspend fun setGoal(effectiveDate: String, nutrients: List<NutrientAmount>) = Result.success(Goal(effectiveDate, nutrients))
     override suspend fun updateTimezone(timezone: String): Result<String> {

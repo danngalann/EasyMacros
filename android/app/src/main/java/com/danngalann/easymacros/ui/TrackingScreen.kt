@@ -164,7 +164,7 @@ private fun LogRation(state: TrackingUiState, viewModel: TrackingViewModel, onRe
         IconButton(onClick = { viewModel.navigate(TrackingDestination.Dashboard) }) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to Today")
         }
-        ScreenIntro("Log a ration", "Choose a recipe, enter the amount, then review before saving.", Modifier.weight(1f))
+        ScreenIntro("Log a ration", "Choose a recipe, optionally enter a portion weight, then review before saving.", Modifier.weight(1f))
     }
     Text("1. Choose a recipe", style = MaterialTheme.typography.titleLarge)
     OutlinedTextField(
@@ -187,13 +187,18 @@ private fun LogRation(state: TrackingUiState, viewModel: TrackingViewModel, onRe
             }
         }
     }
-    Text("2. Add the amount", style = MaterialTheme.typography.titleLarge)
+    Text("2. Choose the portion", style = MaterialTheme.typography.titleLarge)
     OutlinedTextField(
         value = draft.grams,
         onValueChange = { viewModel.updateDraft(grams = it) },
-        label = { Text("Amount eaten") },
+        label = { Text("Portion weight (optional)") },
         suffix = { Text("g") },
-        supportingText = { Text("Use the weight of the prepared recipe") },
+        supportingText = {
+            Text(
+                draft.selectedRecipe?.let { "Leave blank for the whole dish (${it.yieldGrams.toDisplayNumber()} g)" }
+                    ?: "Leave blank for the whole dish",
+            )
+        },
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
     )
@@ -211,13 +216,14 @@ private fun LogRation(state: TrackingUiState, viewModel: TrackingViewModel, onRe
         modifier = Modifier.fillMaxWidth(),
     )
     draft.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-    Button(onClick = viewModel::previewRation, enabled = !draft.isSubmitting && draft.selectedRecipe != null && draft.grams.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
+    Button(onClick = viewModel::previewRation, enabled = !draft.isSubmitting && draft.selectedRecipe != null, modifier = Modifier.fillMaxWidth()) {
         Text(if (draft.isSubmitting) "Reviewing…" else "Review contribution")
     }
     draft.preview?.let { preview ->
         SectionCard {
             Text("3. Review", style = MaterialTheme.typography.titleLarge)
             Text(preview.recipeName, style = MaterialTheme.typography.titleMedium)
+            Text("${preview.consumedGrams.toDisplayNumber()} g")
             Text("${preview.calories.toDisplayNumber()} kcal")
             preview.nutrients.forEach { Text("${it.code.displayLabel()}: ${it.amount.toDisplayNumber()} g") }
             Button(onClick = viewModel::confirmRation, enabled = !draft.isSubmitting, modifier = Modifier.fillMaxWidth()) { Text("Log ration") }

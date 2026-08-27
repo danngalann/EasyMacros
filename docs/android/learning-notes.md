@@ -269,3 +269,14 @@ root authentication graph. `RefreshCoordinator` therefore publishes a `SharedFlo
 invalidation event, and `AuthViewModel` collects it in `viewModelScope`. The event changes
 immutable `AuthUiState`, Compose observes the `StateFlow`, and the login screen replaces
 the authenticated shell without restarting the process.
+
+The ration draft keeps optional portion weight as an immutable `String`: blank means
+“whole dish,” while a non-blank value must be a positive decimal. The repository maps
+blank to nullable DTO data so the JSON request omits `consumedGrams`; Retrofit suspends
+while the backend resolves recipe yield and returns the authoritative preview. The
+ViewModel's `viewModelScope` updates `StateFlow`, and lifecycle-aware collection
+recomposes the review after configuration changes without calculating nutrients in
+Compose. A common debugging check is to inspect the serialized request, because sending
+an empty string instead of omitting the field correctly produces validation failure.
+The ViewModel regression test proves blank weight reaches preview and create as null and
+successfully returns the user to Today.

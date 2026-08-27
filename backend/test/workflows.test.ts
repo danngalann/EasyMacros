@@ -73,6 +73,49 @@ describe("recipe updates", () => {
 });
 
 describe("ration history", () => {
+  it("defaults an omitted ration weight to the full recipe yield", async () => {
+    const insertedRationValues: unknown[][] = [];
+    const database = {
+      transaction: async <T>(operation: (transaction: never) => Promise<T>) =>
+        operation(database as never),
+      query: (sql: string, values?: unknown[]) => {
+        if (sql.includes("FROM recipes r JOIN recipe_versions")) {
+          return Promise.resolve({
+            rows: [
+              {
+                id: "version-1",
+                recipeId: "recipe-1",
+                name: "Rice bowl",
+                yieldGrams: "300.000000",
+                notes: null,
+                versionNumber: 1,
+              },
+            ],
+          });
+        }
+        if (sql.includes("FROM recipe_version_nutrients")) {
+          return Promise.resolve({ rows: [{ code: "protein", amount: "21.000000" }] });
+        }
+        if (sql.includes("INSERT INTO rations")) insertedRationValues.push(values ?? []);
+        return Promise.resolve({ rows: [] });
+      },
+    };
+    const service = new NutritionWorkflowService(database as never);
+
+    const preview = await service.previewRation("user-1", { recipeId: "recipe-1" });
+    const created = await service.createRation("user-1", "UTC", {
+      recipeId: "recipe-1",
+      consumedAt: "2026-08-27T07:00:00.000Z",
+    });
+
+    expect(preview).toMatchObject({
+      consumedGrams: "300.000000",
+      nutrients: [{ code: "protein", amount: "21.000000" }],
+    });
+    expect(created.nutrients).toEqual([{ code: "protein", amount: "21.000000" }]);
+    expect(insertedRationValues[0]?.[3]).toBe("300.000000");
+  });
+
   it("scopes deletion to the owner and rejects a missing active ration", async () => {
     const queries: Array<{ sql: string; values: unknown[] | undefined }> = [];
     const database = {

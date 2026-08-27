@@ -84,7 +84,7 @@ interface TrackingApi {
 
 data class RationRequest(
     val recipeId: String,
-    val consumedGrams: String,
+    val consumedGrams: String?,
     val consumedAt: String,
     val note: String? = null,
 )
@@ -94,9 +94,10 @@ data class RationCreatedResponse(
     val nutrients: List<NutrientAmountResponse>,
     val calories: String,
 )
-data class RationPreviewRequest(val recipeId: String, val consumedGrams: String)
+data class RationPreviewRequest(val recipeId: String, val consumedGrams: String?)
 data class RationPreviewResponse(
     val recipeName: String,
+    val consumedGrams: String,
     val nutrients: List<NutrientAmountResponse>,
     val calories: String,
 )

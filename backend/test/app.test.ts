@@ -84,6 +84,28 @@ describe("health endpoint", () => {
     expect(paths).toHaveProperty("/ingredient-candidates/{candidateId}");
     expect(paths).toHaveProperty("/ingredient-candidates/{candidateId}/retry");
     expect(paths).toHaveProperty("/ingredient-candidates/{candidateId}/confirm");
+    const rationRequestBodies = JSON.parse(JSON.stringify(paths)) as Record<
+      string,
+      {
+        post?: {
+          requestBody?: {
+            content: Record<string, { schema: { required?: string[] } }>;
+          };
+        };
+      }
+    >;
+    expect(
+      rationRequestBodies["/rations"]?.post?.requestBody?.content["application/json"]?.schema
+        .required,
+    ).not.toContain("consumedGrams");
+    expect(
+      rationRequestBodies["/rations/preview"]?.post?.requestBody?.content["application/json"]
+        ?.schema.required,
+    ).not.toContain("consumedGrams");
+    expect(paths).toHaveProperty(
+      "/rations/preview.post.responses.200.content.application/json.schema.required",
+      expect.arrayContaining(["consumedGrams"]),
+    );
   });
 
   it("does not expose unexpected exception details", async () => {

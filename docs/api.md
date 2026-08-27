@@ -141,8 +141,9 @@ ingredients, then returns the canonical batch nutrient totals and derived calori
 creating or changing a recipe. Clients use this endpoint for pre-save display only; the
 subsequent create or update remains the authoritative persisted operation.
 
-`POST /rations` requires a current active `recipeId`, positive decimal `consumedGrams`,
-and an ISO-8601 `consumedAt`; `note` is optional. The API reads the authenticated user's
+`POST /rations` requires a current active `recipeId` and an ISO-8601 `consumedAt`;
+`note` and positive decimal `consumedGrams` are optional. When `consumedGrams` is
+omitted, the API uses the current recipe yield and logs the whole dish. The API reads the authenticated user's
 IANA timezone, derives the ration's local date, and persists recipe/name/yield/nutrient
 snapshots atomically. Ration history is sorted by local date, instant, then ID in
 descending order. `limit` is bounded to 1-100 (default 50); use the opaque
@@ -168,9 +169,9 @@ DELETE /rations/{rationId}
 PUT    /me/timezone
 ```
 
-`POST /rations/preview` accepts an active `recipeId` and positive decimal
-`consumedGrams`. It returns that recipe snapshot's proportional nutrients and
-calories without persisting a ration. Clients must use this returned value for the
+`POST /rations/preview` accepts an active `recipeId` and optional positive decimal
+`consumedGrams`. Omission previews the whole dish using the current recipe yield. It
+returns the resolved `consumedGrams`, proportional nutrients, and calories without persisting a ration. Clients must use this returned value for the
 contribution review; only `POST /rations` creates the immutable snapshot.
 
 `GET /rations` also accepts optional `from`, `to`, and `query` parameters. `from` and

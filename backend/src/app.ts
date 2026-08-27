@@ -598,17 +598,66 @@ export async function buildApp({ config, database }: BuildAppOptions = {}) {
     },
   );
 
+  const optionalRationWeight = {
+    type: "string",
+    pattern: "^(?:0*[1-9]\\d*(?:\\.\\d+)?|0+\\.\\d*[1-9]\\d*)$",
+  } as const;
+  const rationPreviewBody = {
+    type: "object",
+    required: ["recipeId"],
+    additionalProperties: false,
+    properties: {
+      recipeId: { type: "string", format: "uuid" },
+      consumedGrams: optionalRationWeight,
+    },
+  } as const;
+  const rationBody = {
+    ...rationPreviewBody,
+    required: ["recipeId", "consumedAt"],
+    properties: {
+      ...rationPreviewBody.properties,
+      consumedAt: { type: "string", format: "date-time" },
+      note: { type: "string" },
+    },
+  } as const;
+  const rationPreviewResponse = {
+    type: "object",
+    required: ["recipeName", "consumedGrams", "nutrients", "calories"],
+    properties: {
+      recipeName: { type: "string" },
+      consumedGrams: { type: "string" },
+      nutrients: {
+        type: "array",
+        items: {
+          type: "object",
+          required: ["code", "amount"],
+          properties: {
+            code: { type: "string" },
+            amount: { type: "string" },
+          },
+        },
+      },
+      calories: { type: "string" },
+    },
+  } as const;
+
   app.post<{
-    Body: { consumedAt: string; consumedGrams: string; note?: string; recipeId: string };
-  }>("/rations", { schema: { tags: ["rations"] } }, async (request) => {
+    Body: { consumedAt: string; consumedGrams?: string; note?: string; recipeId: string };
+  }>("/rations", { schema: { body: rationBody, tags: ["rations"] } }, async (request) => {
     const identity = await requireIdentity(request);
     const user = await requireAuthService().currentUser(identity.userId);
     return requireWorkflowService().createRation(identity.userId, user.timezone, request.body);
   });
 
-  app.post<{ Body: { consumedGrams: string; recipeId: string } }>(
+  app.post<{ Body: { consumedGrams?: string; recipeId: string } }>(
     "/rations/preview",
-    { schema: { tags: ["rations"] } },
+    {
+      schema: {
+        body: rationPreviewBody,
+        response: { 200: rationPreviewResponse },
+        tags: ["rations"],
+      },
+    },
     async (request) => {
       const identity = await requireIdentity(request);
       return requireWorkflowService().previewRation(identity.userId, request.body);

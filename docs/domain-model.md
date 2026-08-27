@@ -41,7 +41,9 @@ Phase 5 exposes these models through owner-scoped workflows. Recipe creation and
 run transactionally: each version snapshots every selected ingredient's name and nutrient
 values, calculates six-decimal totals, and atomically changes the recipe's current
 version. Ration creation similarly snapshots the then-current recipe version and derives
-`consumed_local_date` from the user's stored IANA timezone. Ration history uses the
+`consumed_local_date` from the user's stored IANA timezone. An omitted ration weight
+means the whole dish: the backend resolves it to the current recipe version's yield
+before persisting the non-null consumed-weight snapshot. Ration history uses the
 `(consumed_local_date, consumed_at, id)` ordering as its opaque cursor boundary.
 
 Goal replacement keeps one profile per user/effective local date. Dashboard totals are

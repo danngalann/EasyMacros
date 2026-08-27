@@ -121,6 +121,7 @@
 - [x] Confirmation returns to ingredient search with visible success feedback
 - [x] Recipe creation uses the shared manual/barcode/AI chooser and resumes its draft
 - [x] Recipe weight is derived from component weights; no redundant yield input remains
+- [x] Ration weight is optional; omission logs the whole recipe yield
 - [x] Log ration action is hidden while the log flow is active
 - [x] Candidate fields show required/optional status and field-relevant warnings
 - [x] AI ingestion accepts up to four jointly analyzed images

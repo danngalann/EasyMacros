@@ -91,6 +91,9 @@ timezone update state. `TrackingRepository` maps protected ration, goal, and pro
 DTOs to UI models. Recipe search for the log flow is debounced and cancellable; history
 uses the server's opaque keyset cursor. Compose never calculates a persisted ration's
 nutrients or calories, instead rendering `POST /rations/preview` and dashboard values.
+The ration portion field is optional: a blank draft is sent as an omitted JSON value,
+which the backend resolves to the whole recipe yield; a positive value represents a
+portion of the dish.
 
 Timezone changes are explicit and warn that the backend reclassifies existing ration
 days while retaining their instant and nutrient snapshots. Corrections delete a ration
