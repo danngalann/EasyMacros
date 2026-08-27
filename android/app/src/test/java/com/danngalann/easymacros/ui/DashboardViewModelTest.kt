@@ -36,7 +36,14 @@ class DashboardViewModelTest {
 
     @Test fun `moves to the previous date and reloads`() = runTest {
         val repository = FakeDashboardRepository(
-            Result.success(DailyDashboard("2026-08-06", emptyList(), "0", Goal("2026-08-01", emptyList()))),
+            Result.success(
+                DailyDashboard(
+                    "2026-08-06",
+                    emptyList(),
+                    "0",
+                    Goal("2026-08-01", emptyList(), "0"),
+                ),
+            ),
         )
         val viewModel = DashboardViewModel(repository)
         runCurrent()

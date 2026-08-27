@@ -155,8 +155,11 @@ the profile for that effective local date. `GET /goals` selects the most recent 
 effective on or before the requested date; it returns `404` when none exists.
 
 `GET /dashboard` returns the day-local summed ration nutrients, authoritative derived
-calories, and the effective goal profile. All mutable-resource reads and writes are
-scoped to the authenticated user in their database query.
+calories, and the effective goal profile. Goal responses include authoritative target
+calories derived from their protein, carbohydrate, and fat targets with the canonical
+formula. Android displays this value rather than calculating it independently. All
+mutable-resource reads and writes are scoped to the authenticated user in their database
+query.
 
 ## Tracking and profile settings
 

@@ -26,6 +26,8 @@ Values are rounded half-up to six decimal places only when serialized. Recipe yi
 component weights, explicit consumed weights, and goal amounts must be positive; nutrient
 amounts must be finite and non-negative. Calories are derived from the ration snapshot
 using `protein_g * 4 + carbohydrates_g * 4 + fat_g * 9`; label energy is not used.
+Goal calories use the same formula over the effective goal profile's macro targets and
+are returned by the backend for display.
 
 Open Food Facts imports only as-sold `_100g` values. Missing keys remain absent. Provider
 sodium is converted from grams to the catalog's milligrams; when sodium is absent but

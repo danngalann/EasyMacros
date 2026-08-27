@@ -51,7 +51,11 @@ data class DashboardResponse(
 )
 
 data class NutrientAmountResponse(val code: String, val amount: String)
-data class GoalResponse(val effectiveLocalDate: String, val nutrients: List<NutrientAmountResponse>)
+data class GoalResponse(
+    val effectiveLocalDate: String,
+    val nutrients: List<NutrientAmountResponse>,
+    val calories: String,
+)
 
 interface TrackingApi {
     @GET("rations")

@@ -63,7 +63,12 @@ calls the protected `GET /dashboard` endpoint through the same bearer-token inte
 and refresh authenticator. `DashboardRepository` maps wire DTOs into display models;
 the `DashboardViewModel` owns the selected `LocalDate` and its immutable loading,
 content, and error state. The app displays server-provided nutrient totals and calories
-without independently recalculating them.
+without independently recalculating them. The Today summary gives consumed calories the
+largest type, places the server-derived goal calorie target directly beneath it, then
+uses title-level macro labels above body-level amounts and progress. Calories and macros
+that exceed their targets show explicit error-colored overage text; macro progress bars
+also switch from primary green to error red. Calorie and macro groups use separate
+headings, dividers, and vertical spacing so color is not the only status or hierarchy cue.
 
 Phase 8 adds a recipe workspace reachable from the authenticated dashboard. `RecipeApi`
 and `IngredientApi` use the protected client, while `RecipeRepository` maps recipe and

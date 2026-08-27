@@ -589,7 +589,11 @@ async function goalForDate(database: QueryDatabase, userId: string, date: string
       [profile.id],
     )
   ).rows;
-  return { effectiveLocalDate: profile.effectiveLocalDate, nutrients };
+  return {
+    effectiveLocalDate: profile.effectiveLocalDate,
+    nutrients,
+    calories: calculateCalories(nutrients),
+  };
 }
 
 function validateRecipe(input: RecipeInput) {

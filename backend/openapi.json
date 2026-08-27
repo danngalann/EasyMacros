@@ -1631,7 +1631,39 @@
         "tags": ["goals"],
         "responses": {
           "200": {
-            "description": "Default Response"
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["effectiveLocalDate", "nutrients", "calories"],
+                  "properties": {
+                    "effectiveLocalDate": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "nutrients": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": ["code", "amount"],
+                        "properties": {
+                          "code": {
+                            "type": "string"
+                          },
+                          "amount": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "calories": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       },
@@ -1639,7 +1671,39 @@
         "tags": ["goals"],
         "responses": {
           "200": {
-            "description": "Default Response"
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["effectiveLocalDate", "nutrients", "calories"],
+                  "properties": {
+                    "effectiveLocalDate": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "nutrients": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": ["code", "amount"],
+                        "properties": {
+                          "code": {
+                            "type": "string"
+                          },
+                          "amount": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "calories": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -1649,7 +1713,74 @@
         "tags": ["dashboard"],
         "responses": {
           "200": {
-            "description": "Default Response"
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["date", "nutrients", "calories"],
+                  "properties": {
+                    "date": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "nutrients": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": ["code", "amount"],
+                        "properties": {
+                          "code": {
+                            "type": "string"
+                          },
+                          "amount": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "calories": {
+                      "type": "string"
+                    },
+                    "goal": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "required": ["effectiveLocalDate", "nutrients", "calories"],
+                          "properties": {
+                            "effectiveLocalDate": {
+                              "type": "string",
+                              "format": "date"
+                            },
+                            "nutrients": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "required": ["code", "amount"],
+                                "properties": {
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "amount": {
+                                    "type": "string"
+                                  }
+                                }
+                              }
+                            },
+                            "calories": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }

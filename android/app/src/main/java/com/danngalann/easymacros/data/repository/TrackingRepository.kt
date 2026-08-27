@@ -137,7 +137,13 @@ class DefaultTrackingRepository @Inject constructor(
     }
     override suspend fun deleteRation(rationId: String) = request { api.deleteRation(rationId); Unit }
     override suspend fun setGoal(effectiveDate: String, nutrients: List<NutrientAmount>) = request {
-        api.setGoal(GoalRequest(effectiveDate, nutrients.map { com.danngalann.easymacros.data.api.NutrientAmountResponse(it.code, it.amount) })).let { Goal(it.effectiveLocalDate, it.nutrients.map { nutrient -> NutrientAmount(nutrient.code, nutrient.amount) }) }
+        api.setGoal(GoalRequest(effectiveDate, nutrients.map { com.danngalann.easymacros.data.api.NutrientAmountResponse(it.code, it.amount) })).let {
+            Goal(
+                it.effectiveLocalDate,
+                it.nutrients.map { nutrient -> NutrientAmount(nutrient.code, nutrient.amount) },
+                it.calories,
+            )
+        }
     }
     override suspend fun updateTimezone(timezone: String) = request { api.updateTimezone(TimezoneRequest(timezone)).timezone }
 

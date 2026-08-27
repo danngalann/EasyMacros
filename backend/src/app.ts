@@ -838,16 +838,41 @@ export async function buildApp({ config, database }: BuildAppOptions = {}) {
     },
   );
 
+  const nutrientAmountsResponse = {
+    type: "array",
+    items: {
+      type: "object",
+      required: ["code", "amount"],
+      properties: {
+        code: { type: "string" },
+        amount: { type: "string" },
+      },
+    },
+  } as const;
+  const goalResponse = {
+    type: "object",
+    required: ["effectiveLocalDate", "nutrients", "calories"],
+    properties: {
+      effectiveLocalDate: { type: "string", format: "date" },
+      nutrients: nutrientAmountsResponse,
+      calories: { type: "string" },
+    },
+  } as const;
+
   app.put<{
     Body: { effectiveLocalDate: string; nutrients: Array<{ amount: string; code: string }> };
-  }>("/goals", { schema: { tags: ["goals"] } }, async (request) => {
-    const identity = await requireIdentity(request);
-    return requireWorkflowService().setGoal(identity.userId, request.body);
-  });
+  }>(
+    "/goals",
+    { schema: { response: { 200: goalResponse }, tags: ["goals"] } },
+    async (request) => {
+      const identity = await requireIdentity(request);
+      return requireWorkflowService().setGoal(identity.userId, request.body);
+    },
+  );
 
   app.get<{ Querystring: { date: string } }>(
     "/goals",
-    { schema: { tags: ["goals"] } },
+    { schema: { response: { 200: goalResponse }, tags: ["goals"] } },
     async (request, reply) => {
       const identity = await requireIdentity(request);
       const goal = await requireWorkflowService().goalForDate(identity.userId, request.query.date);
@@ -857,7 +882,25 @@ export async function buildApp({ config, database }: BuildAppOptions = {}) {
 
   app.get<{ Querystring: { date: string } }>(
     "/dashboard",
-    { schema: { tags: ["dashboard"] } },
+    {
+      schema: {
+        response: {
+          200: {
+            type: "object",
+            required: ["date", "nutrients", "calories"],
+            properties: {
+              date: { type: "string", format: "date" },
+              nutrients: nutrientAmountsResponse,
+              calories: { type: "string" },
+              goal: {
+                anyOf: [goalResponse, { type: "null" }],
+              },
+            },
+          },
+        },
+        tags: ["dashboard"],
+      },
+    },
     async (request) => {
       const identity = await requireIdentity(request);
       return requireWorkflowService().dashboard(identity.userId, request.query.date);

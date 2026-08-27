@@ -159,6 +159,18 @@ and calories remain server-authoritative. A history detail renders its stored sn
 correction deletes it and asks the user to log a replacement rather than editing that
 snapshot in place.
 
+The Today card establishes a deliberate type hierarchy: consumed kcal uses the largest,
+bold display in the component; target kcal is a quieter title beneath it; macro names
+use `titleMedium`; and amounts use `bodyLarge`. The backend adds `Goal.calories` using
+the canonical decimal-safe formula, so this visual improvement does not make Compose an
+authoritative calculator. A useful debugging check is to compare the dashboard JSON's
+`goal.calories` with the rendered target before investigating typography or recomposition.
+
+`targetProgress` is a pure presentation helper over immutable `BigDecimal` inputs. It
+caps the visual fraction at one but preserves whether and by how much the value exceeded
+the target. Compose uses that state to render red overage bars and labels; explicit text
+and progress semantics ensure the result does not rely on color alone.
+
 Goals are effective-dated and use positive decimal strings. Progress is presentation
 only: when consumed amount exceeds a target, the screen exposes an over-goal label and
 caps the progress bar's visual fraction at one. The underlying amount is never capped.

@@ -79,6 +79,10 @@
 
 - [x] Android date dashboard with authoritative macro progress, calories, day rations,
       loading, empty, retry, and manual refresh states
+- [x] Today hierarchy shows prominent consumed kcal, server-derived goal kcal, and
+      distinct macro heading/body typography
+- [x] Over-target calories and macros use explicit error text, red macro progress, and
+      accessible non-color status semantics
 - [x] Server-authoritative ration preview and Android log confirmation flow without meal categories
 - [x] Effective-dated Android goal editor and protected profile timezone setting
 - [x] Owner-scoped ration history search/date filters, keyset paging, immutable detail, and

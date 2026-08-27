@@ -11,6 +11,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -142,34 +143,124 @@ private fun Dashboard(state: TrackingUiState, viewModel: TrackingViewModel, onRe
 @Composable
 private fun DashboardTotals(dashboard: DailyDashboard) {
     SectionCard {
-        Text("${dashboard.calories.toDisplayNumber()} kcal", style = MaterialTheme.typography.headlineMedium)
-        Text("Consumed", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                "Calories",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                "${dashboard.calories.toDisplayNumber()} kcal",
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold,
+            )
+            dashboard.goal?.let { goal ->
+                Text(
+                    "of ${goal.calories.toDisplayNumber()} kcal",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                val consumedCalories = dashboard.calories.toBigDecimalOrNull()
+                val targetCalories = goal.calories.toBigDecimalOrNull()
+                if (consumedCalories != null && targetCalories != null) {
+                    val progress = targetProgress(consumedCalories, targetCalories)
+                    if (progress.isOver) {
+                        Text(
+                            "${progress.difference.toPlainString().toDisplayNumber()} kcal over target",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            }
+        }
+        HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
+        Text("Macros", style = MaterialTheme.typography.titleLarge)
         val consumed = dashboard.nutrients.associateBy { it.code }
         val goals = dashboard.goal?.nutrients?.associateBy { it.code }.orEmpty()
-        listOf("protein", "carbohydrates", "fat").forEach { code ->
+        listOf("protein", "carbohydrates", "fat").forEachIndexed { index, code ->
             val amount = consumed[code]?.amount ?: "0"
             val target = goals[code]?.amount
             val value = amount.toBigDecimalOrNull() ?: BigDecimal.ZERO
             val goal = target?.toBigDecimalOrNull()?.takeIf { it.signum() > 0 }
-            Text(code.displayLabel(), fontWeight = FontWeight.SemiBold)
-            Text("${amount.toDisplayNumber()} g${target?.let { " of ${it.toDisplayNumber()} g" } ?: ""}")
-            goal?.let {
-                val progress = value.divide(it, 4, RoundingMode.HALF_UP).toFloat().coerceIn(0f, 1f)
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "$code progress" },
-                )
-                val remaining = it.subtract(value)
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
                 Text(
-                    if (remaining.signum() < 0) "${remaining.abs().toPlainString().toDisplayNumber()} g over target"
-                    else "${remaining.toPlainString().toDisplayNumber()} g remaining",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    code.displayLabel(),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
                 )
+                Text(
+                    "${amount.toDisplayNumber()} g${target?.let { " of ${it.toDisplayNumber()} g" } ?: ""}",
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                goal?.let {
+                    val progress = targetProgress(value, it)
+                    LinearProgressIndicator(
+                        progress = { progress.fraction },
+                        color = if (progress.isOver) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        },
+                        trackColor = if (progress.isOver) {
+                            MaterialTheme.colorScheme.error.copy(alpha = 0.2f)
+                        } else {
+                            MaterialTheme.colorScheme.surface
+                        },
+                        modifier = Modifier.fillMaxWidth().semantics {
+                            contentDescription = if (progress.isOver) {
+                                "$code over target"
+                            } else {
+                                "$code progress"
+                            }
+                        },
+                    )
+                    Text(
+                        if (progress.isOver) {
+                            "${progress.difference.toPlainString().toDisplayNumber()} g over target"
+                        } else {
+                            "${progress.difference.toPlainString().toDisplayNumber()} g remaining"
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = if (progress.isOver) FontWeight.SemiBold else FontWeight.Normal,
+                        color = if (progress.isOver) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                }
             }
+            if (index < 2) Spacer(modifier = Modifier.height(8.dp))
         }
-        dashboard.goal?.let { Text("Targets active since ${it.effectiveLocalDate.localizedDate()}", style = MaterialTheme.typography.bodyMedium) }
+        dashboard.goal?.let {
+            HorizontalDivider(modifier = Modifier.padding(top = 6.dp))
+            Text(
+                "Targets active since ${it.effectiveLocalDate.localizedDate()}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
+}
+
+internal data class TargetProgress(
+    val fraction: Float,
+    val difference: BigDecimal,
+    val isOver: Boolean,
+)
+
+internal fun targetProgress(value: BigDecimal, target: BigDecimal): TargetProgress {
+    val isOver = value > target
+    return TargetProgress(
+        fraction = value.divide(target, 4, RoundingMode.HALF_UP).toFloat().coerceIn(0f, 1f),
+        difference = if (isOver) value.subtract(target) else target.subtract(value),
+        isOver = isOver,
+    )
 }
 
 @Composable

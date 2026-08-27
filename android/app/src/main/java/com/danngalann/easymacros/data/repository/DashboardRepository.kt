@@ -13,6 +13,7 @@ data class NutrientAmount(val code: String, val amount: String)
 data class Goal(
     val effectiveLocalDate: String,
     val nutrients: List<NutrientAmount>,
+    val calories: String,
 )
 
 data class DailyDashboard(
@@ -59,4 +60,4 @@ sealed class ApiFailure : Exception() {
 
 private fun List<NutrientAmountResponse>.toDomain() = map { NutrientAmount(it.code, it.amount) }
 
-private fun GoalResponse.toDomain() = Goal(effectiveLocalDate, nutrients.toDomain())
+private fun GoalResponse.toDomain() = Goal(effectiveLocalDate, nutrients.toDomain(), calories)

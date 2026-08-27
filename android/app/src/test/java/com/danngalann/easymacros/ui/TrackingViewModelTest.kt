@@ -155,6 +155,7 @@ private class TrackingFakeDashboardRepository : DashboardRepository {
                     NutrientAmount("carbohydrates", "250.000000"),
                     NutrientAmount("fat", "70.000000"),
                 ),
+                "2110.000000",
             ),
         ),
     )
@@ -223,7 +224,8 @@ private class FakeTrackingRepository : TrackingRepository {
         return Result.success(Unit)
     }
     override suspend fun deleteRation(rationId: String) = Result.success(Unit)
-    override suspend fun setGoal(effectiveDate: String, nutrients: List<NutrientAmount>) = Result.success(Goal(effectiveDate, nutrients))
+    override suspend fun setGoal(effectiveDate: String, nutrients: List<NutrientAmount>) =
+        Result.success(Goal(effectiveDate, nutrients, "0"))
     override suspend fun updateTimezone(timezone: String): Result<String> {
         timezoneUpdates += 1
         return Result.success(timezone)

@@ -153,3 +153,35 @@ describe("ration history", () => {
     expect(queries[1]).toMatchObject({ values: ["user-1", "America/New_York"] });
   });
 });
+
+describe("goal summaries", () => {
+  it("derives the calorie target from authoritative goal macros", async () => {
+    const database = {
+      query: (sql: string) => {
+        if (sql.includes("FROM goal_profiles")) {
+          return Promise.resolve({
+            rows: [{ id: "goal-1", effectiveLocalDate: "2026-08-01" }],
+          });
+        }
+        return Promise.resolve({
+          rows: [
+            { code: "protein", amount: "120.000000" },
+            { code: "carbohydrates", amount: "250.000000" },
+            { code: "fat", amount: "70.000000" },
+          ],
+        });
+      },
+    };
+    const service = new NutritionWorkflowService(database as never);
+
+    await expect(service.goalForDate("user-1", "2026-08-27")).resolves.toEqual({
+      effectiveLocalDate: "2026-08-01",
+      nutrients: [
+        { code: "protein", amount: "120.000000" },
+        { code: "carbohydrates", amount: "250.000000" },
+        { code: "fat", amount: "70.000000" },
+      ],
+      calories: "2110.000000",
+    });
+  });
+});

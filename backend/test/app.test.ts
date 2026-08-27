@@ -108,6 +108,14 @@ describe("health endpoint", () => {
       "/rations/preview.post.responses.200.content.application/json.schema.required",
       expect.arrayContaining(["consumedGrams"]),
     );
+    expect(paths).toHaveProperty(
+      "/dashboard.get.responses.200.content.application/json.schema.properties.goal.anyOf.0.required",
+      expect.arrayContaining(["calories"]),
+    );
+    expect(paths).toHaveProperty(
+      "/goals.get.responses.200.content.application/json.schema.required",
+      expect.arrayContaining(["calories"]),
+    );
   });
 
   it("does not expose unexpected exception details", async () => {
