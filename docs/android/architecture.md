@@ -96,6 +96,10 @@ timezone update state. `TrackingRepository` maps protected ration, goal, and pro
 DTOs to UI models. Recipe search for the log flow is debounced and cancellable; history
 uses the server's opaque keyset cursor. Compose never calculates a persisted ration's
 nutrients or calories, instead rendering `POST /rations/preview` and dashboard values.
+`TrackingApi` alone uses a 120-second call timeout, 100-second read timeout, and
+60-second upload timeout because synchronous advanced-model ration analysis may use the
+backend's 90-second provider window. Other API clients retain OkHttp defaults so ordinary
+failures remain fast.
 The ration portion field is optional: a blank draft is sent as an omitted JSON value,
 which the backend resolves to the whole recipe yield; a positive value represents a
 portion of the dish.

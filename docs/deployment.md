@@ -57,7 +57,9 @@ maintained reverse proxy attached to the external `proxy` network and forward to
 directly trusted hop; use a higher value only after verifying the actual topology.
 The proxy must enforce request-size limits, preserve `X-Forwarded-For` only from trusted
 peers, redirect HTTP to HTTPS, and retain access/error logs according to the operator's
-retention policy. Never expose PostgreSQL or the API's plain HTTP port publicly.
+retention policy. Its upstream response timeout must be at least 100 seconds (120 seconds
+recommended) because `POST /ration-ai-estimates` can wait up to 90 seconds for the
+advanced model. Never expose PostgreSQL or the API's plain HTTP port publicly.
 
 ## Backup and restore
 

@@ -137,3 +137,5 @@
 - [x] Whole-ration AI uses the advanced model, strict totals schema, multi-image context,
       explicit editable review, and exactly-once immutable snapshot confirmation
 - [x] AI ration history preserves and displays estimate source, confidence, and warnings
+- [x] Tracking networking and deployment proxy guidance allow the advanced model's
+      bounded 90-second response window without relaxing ordinary API clients

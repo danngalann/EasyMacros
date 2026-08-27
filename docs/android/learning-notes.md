@@ -299,6 +299,14 @@ activity-scoped `TrackingViewModel` across configuration changes. They are not r
 after process death, so the safe behavior is to restart the private upload rather than
 persist meal photos locally.
 
+OkHttp's default read/call behavior is too short for a backend operation that may wait
+up to 90 seconds for an advanced model. Hilt therefore builds `TrackingApi` with a
+derived client whose total call timeout is 120 seconds; authentication interceptors and
+the refresh authenticator remain attached. Keeping this override on the tracking client
+avoids making login and ordinary catalog failures slow. If production fails near a
+repeatable duration, compare Android's call timeout, the reverse proxy's upstream
+response timeout, and the backend provider timeout.
+
 Data flows `TrackingApi` DTO -> `TrackingRepository` domain estimate ->
 `TrackingViewModel` review state -> composable fields. Retrofit endpoints are `suspend`;
 `viewModelScope` binds their coroutines to ViewModel lifetime, while lifecycle-aware

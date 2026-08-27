@@ -31,6 +31,7 @@ import javax.inject.Named
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -86,7 +87,16 @@ object NetworkModule {
     @Provides @Singleton fun provideTrackingApi(
         interceptor: AuthHeaderInterceptor,
         authenticator: RefreshAuthenticator,
-    ): TrackingApi = protectedRetrofit(interceptor, authenticator).create(TrackingApi::class.java)
+    ): TrackingApi = Retrofit.Builder()
+        .baseUrl(BuildConfig.API_BASE_URL)
+        .client(
+            withRationAnalysisTimeout(
+                networkClient(interceptor, authenticator),
+            ),
+        )
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
+        .create(TrackingApi::class.java)
 
     private fun protectedRetrofit(
         interceptor: AuthHeaderInterceptor,
@@ -106,3 +116,10 @@ object NetworkModule {
         if (BuildConfig.DEBUG) addInterceptor(NetworkFailureLoggingInterceptor())
     }.build()
 }
+
+internal fun withRationAnalysisTimeout(client: OkHttpClient): OkHttpClient =
+    client.newBuilder()
+        .callTimeout(120, TimeUnit.SECONDS)
+        .readTimeout(100, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
+        .build()
